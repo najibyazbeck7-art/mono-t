@@ -115,11 +115,10 @@ body {
 }
 
 .sensor-card {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+    border-left: 4px solid #475569; /* Default gray border */
     border-radius: 20px;
     padding: 15px;
-    background: #82949c;
+    background: #334155; 
 }
 
 .card-top {
@@ -131,7 +130,9 @@ body {
 }
 
 .toggle-btn {
-    background-color: var(--teal);
+
+    width: ;
+    background-color:#065f46;
     color: white;
     font-size: 10px;
     font-weight: bold;
