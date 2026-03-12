@@ -1,44 +1,100 @@
-:root {
-    --bg-dark: #1a1f2b;
-    --card-bg: #252b39;
-    --teal: #00d1b2;
-    --orange: #f39c12;
-    --border-color: #4a5568;
-}
+/* =========================================
+    THERMO BETA - MASTER STYLESHEET
+    =========================================
+    Project: Remote Mushroom Lab Dashboard
+    Owner: Antonio
+    Layout: Mobile-First, Compact
+    =========================================
+*/
 
-body {
-    background-color: #0b0e14;
-    color: white;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+/* --- 1. GLOBAL THEME & RESET --- */
+body { 
+    font-family: 'Segoe UI', system-ui, sans-serif; 
+    background: #0f172a; 
+    color: white; 
+    margin: 0; 
+    padding: 10px; 
     display: flex;
     justify-content: center;
-    padding: 20px;
 }
 
-.dashboard-container {
-    width: 400px;
-    background-color: var(--bg-dark);
-    border-radius: 20px;
-    padding: 20px;
-    border: 1px solid var(--border-color);
+/* Main dark card wrapper */
+.app-container { 
+    display: flex;
+    flex-direction: column; 
+    width: 95%;
+    max-width: 400px; 
+    background: transparent;
+    padding: 20px; 
+    border-radius: 24px; 
+    margin: auto;
+    box-sizing: border-box;
 }
 
-/* Header Styles */
-.title-row {
+/* --- 2. HEADER SECTION --- */
+.header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding-bottom: 10px; /* Reduced from 20px */
+    margin-bottom: 10px; /* Reduced space before actions */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.teal { color: var(--teal); }
+#main-title {
+    font-size: 1.1rem; /* Smaller title */
+    margin: 0;
+}
 
-.status-badge {
-    background: #442222;
-    color: #ff4444;
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 5px;
-    border: 1px solid #ff4444;
+.header h2 {
+    margin: 0;
+    font-size: 1.2em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Online/Offline pill */
+.status-pill { 
+    padding: 4px 10px; 
+    border-radius: 12px; 
+    font-size: 0.7em; 
+    font-weight: 800; 
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.is-online { background: #065f46; color: #34d399; }
+.is-offline { background: #450a0a; color: #f87171; }
+
+
+/* --- HEADER CONTROLS --- */
+.header-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Aligns pill and signal to the right */
+    justify-content: center;
+}
+
+/* --- Settings Gear --- */
+.settings-link {
+    text-decoration: none;
+    transition: transform 0.2s, color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.settings-link:active {
+    transform: scale(0.9); /* Visual feedback when tapped */
+}
+
+.gear-icon {
+    font-size: 1.2rem; /* Increased size for tap-friendliness */
+    color: #94a3b8; /* Muted slate color */
+}
+
+.settings-link:hover .gear-icon {
+    color: #34d399; /* Neon green glow on hover/active */
+    text-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
 }
 
 /* Room Bar */

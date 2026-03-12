@@ -2,23 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mycotech Hub - MONO-T</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="dashboard-container">
-    <header class="header">
-        <div class="title-row">
-            <h1>MONO-<span class="teal">T</span></h1>
-            <span class="status-badge">OFFLINE</span>
+<div class="app-container">
+    <div class="header">
+            <h2 id="main-title">MONO<span style="color:#3b82f6">T</span></h2>
+            <div class="header-controls">
+                <div id="status-bar" class="status-pill is-offline">CONNECTING...</div>
+            </div>
         </div>
-        <div class="action-row">
-            <button class="btn-share">SHARE</button>
-            <div class="settings-icon">⚙️</div>
-        </div>
-    </header>
 
     <div class="room-selector">
         <div class="room-name">Room 1 ▾</div>
