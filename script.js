@@ -118,11 +118,33 @@ function toggleRelay(id) {
 }
 
 function publishCommand(num, val) {
-    if (!client.isConnected()) return;
+    if (!client.isConnected()) {
+        console.log("Cannot send command - MQTT not connected");
+        return;
+    }
+    
+    const topic = `home/relay/${num}`;
     const message = new Paho.MQTT.Message(val);
-    message.destinationName = `home/relay/${num}`;
+    message.destinationName = topic;
     message.retained = true; 
+    
+    console.log(`Publishing to topic: ${topic}, payload: ${val}`);
     client.send(message);
+    
+    // Also try alternative topic formats
+    const altTopics = [
+        `home/${num}/relay`,
+        `thermo/${num}/relay`,
+        `device/${num}/relay`,
+        `${num}/relay`
+    ];
+    
+    altTopics.forEach(altTopic => {
+        const altMsg = new Paho.MQTT.Message(val);
+        altMsg.destinationName = altTopic;
+        console.log(`Also trying alternative topic: ${altTopic}`);
+        client.send(altMsg);
+    });
 
     if (val === "ON") {
         const input = document.getElementById(`timer-input-${num}`);
@@ -262,5 +284,18 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Add test button to console for debugging
     window.testRelays = testRelayControls;
-    console.log("Type 'testRelays()' in console to test relay controls");
+    window.mqttStatus = () => {
+        console.log("MQTT Connection Status:", client.isConnected());
+        console.log("Client Info:", {
+            host: HOST,
+            port: PORT,
+            clientId: CLIENT_ID,
+            connected: client.isConnected()
+        });
+    };
+    
+    console.log("=== MQTT DEBUG COMMANDS ===");
+    console.log("Type 'testRelays()' to test relay controls");
+    console.log("Type 'mqttStatus()' to check MQTT connection");
+    console.log("===========================");
 });
