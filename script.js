@@ -90,13 +90,31 @@ client.onMessageArrived = (message) => {
 // --- 2. COMMANDS & UI ---
 
 function toggleRelay(id) {
-    if (!client.isConnected()) return;
+    console.log(`Toggle relay ${id} called`);
+    
+    // Check if MQTT is connected
+    if (!client.isConnected()) {
+        console.log("MQTT not connected - cannot toggle relay");
+        updateStatus("OFFLINE", "offline");
+        return;
+    }
     
     const btn = document.getElementById(`${id}-btn`);
+    if (!btn) {
+        console.log(`Button not found for relay ${id}`);
+        return;
+    }
+    
     const currentState = btn.innerText;
     const nextState = (currentState === "ON") ? "OFF" : "ON";
     
+    console.log(`Toggling relay ${id}: ${currentState} -> ${nextState}`);
+    
+    // Send MQTT command
     publishCommand(id, nextState);
+    
+    // Update UI immediately for better UX
+    updateRelayUI(id, nextState);
 }
 
 function publishCommand(num, val) {
@@ -223,9 +241,26 @@ function simulateTemperature() {
 // Start simulation every 5 seconds
 setInterval(simulateTemperature, 5000);
 
+// --- 5. TEST FUNCTIONS ---
+function testRelayControls() {
+    console.log("Testing relay controls...");
+    const testRelays = ['at', 'h1', 'h2', 'h3'];
+    
+    testRelays.forEach((relay, index) => {
+        setTimeout(() => {
+            console.log(`Testing relay ${relay}`);
+            toggleRelay(relay);
+        }, index * 1000); // Test each relay 1 second apart
+    });
+}
+
 // Init
 window.addEventListener('DOMContentLoaded', () => {
     applyCustomNames();
     connectMQTT();
     simulateTemperature(); // Run once immediately
+    
+    // Add test button to console for debugging
+    window.testRelays = testRelayControls;
+    console.log("Type 'testRelays()' in console to test relay controls");
 });
