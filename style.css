@@ -8,13 +8,18 @@ body {
     background: #0f172a; 
     color: white; 
     margin: 0; 
-    padding: 10px; 
+    padding: 0; 
+    display: flex;
+    justify-content: center;
 }
 
 /* Main container */
 .main-container {
     max-width: 400px;
     margin: 0 auto;
+    padding: 0 10px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* App container */
@@ -189,9 +194,14 @@ body {
 @media (max-width: 480px) {
     .main-container {
         padding: 0 5px;
+        width: 100%;
     }
     
     .app-container {
         padding: 15px;
+    }
+    
+    .relay-container {
+        gap: 8px;
     }
 }
