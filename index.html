@@ -3,68 +3,196 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MONO-T</title>
+    <title>Thermo Beta</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
-
-<div class="app-container">
-    <div class="header">
-            <h2 id="main-title">MONO - <span style="color:#3b82f6">T</span></h2>
+    
+<div class="main-container">
+    <div class="app-container">
+        <!-- Header Section -->
+        <div class="header">
+            <h2>Thermo Beta</h2>
             <div class="header-controls">
-                <div id="status-bar" class="status-pill is-offline">CONNECTING...</div>
+                <span class="status-pill is-online" id="status-pill">ONLINE</span>
             </div>
         </div>
 
-        <div class="action-row">
-            <div class="action-group-left">
-                <button id="install-pwa-btn" class="action-link" style="display: none;" onclick="installApp()">+ Install</button>
-                <button id="share-btn" class="action-link" onclick="shareDashboard()">Share</button>
+        <!-- Sensor Cards Container -->
+        <div class="relay-container">
+        
+        <!-- AT Sensor Card -->
+        <div class="relay-box" id="at-card">
+            <div class="relay-label">
+                <span class="sensor-label">AT</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="temp-value"><span id="at-val">--</span><small>C</small></span>
+                    <span class="state-indicator" id="at-state">OFF</span>
+                </div>
             </div>
             
-            <button class="settings-btn" onclick="window.location.href='settings.html'">
-                <svg class="gear-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"></path>
-                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"></path>
-                </svg>
-            </button>
-        </div>
-
-    <div class="room-selector">
-        <div class="room-name">Room 1 ▾</div>
-        <div class="date">03 MAR 2026</div>
-    </div>
-
-    <div class="sensors-grid">
-        <div class="sensor-card">
-            <div class="card-top">
-                <span class="sensor-label">AT</span>
-                <span class="sensor-value">24 <small>C</small></span>
-            </div>
             <div class="toggle-row">
-                <div class="toggle-btn">ON</div>
-                <div class="status-indicator"></div>
+                <button class="toggle-pill" id="at-btn" onclick="toggleRelay('at')">OFF</button>
+                <div class="led-indicator" id="at-led"></div>
             </div>
-            <div class="input-controls">
-                <div class="input-group">
+            
+            <div class="card-inputs">
+                <div class="input-item">
                     <label>min on</label>
-                    <input type="text" placeholder="--">
+                    <input type="text" id="at-min-on" placeholder="--">
                 </div>
-                <button class="btn-set">set</button>
-                <div class="input-group">
+                <button class="btn-set" onclick="sendConfig('at')">SET</button>
+                <div class="input-item">
                     <label>min off</label>
-                    <input type="text" placeholder="--">
+                    <input type="text" id="at-min-off" placeholder="--">
                 </div>
             </div>
-        </div>
         </div>
 
-    <div class="control-settings-box">
-        Control Settings Box
+        <!-- H1 Sensor Card -->
+        <div class="relay-box" id="h1-card">
+            <div class="relay-label">
+                <span class="sensor-label">H1</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="temp-value"><span id="h1-val">--</span><small>C</small></span>
+                    <span class="state-indicator" id="h1-state">OFF</span>
+                </div>
+            </div>
+            
+            <div class="toggle-row">
+                <button class="toggle-pill" id="h1-btn" onclick="toggleRelay('h1')">OFF</button>
+                <div class="led-indicator" id="h1-led"></div>
+            </div>
+            
+            <div class="card-inputs">
+                <div class="input-item">
+                    <label>min on</label>
+                    <input type="text" id="h1-min-on" placeholder="--">
+                </div>
+                <button class="btn-set" onclick="sendConfig('h1')">SET</button>
+                <div class="input-item">
+                    <label>min off</label>
+                    <input type="text" id="h1-min-off" placeholder="--">
+                </div>
+            </div>
+        </div>
+
+        <!-- H2 Sensor Card -->
+        <div class="relay-box" id="h2-card">
+            <div class="relay-label">
+                <span class="sensor-label">H2</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="temp-value"><span id="h2-val">--</span><small>C</small></span>
+                    <span class="state-indicator" id="h2-state">OFF</span>
+                </div>
+            </div>
+            
+            <div class="toggle-row">
+                <button class="toggle-pill" id="h2-btn" onclick="toggleRelay('h2')">OFF</button>
+                <div class="led-indicator" id="h2-led"></div>
+            </div>
+            
+            <div class="card-inputs">
+                <div class="input-item">
+                    <label>min on</label>
+                    <input type="text" id="h2-min-on" placeholder="--">
+                </div>
+                <button class="btn-set" onclick="sendConfig('h2')">SET</button>
+                <div class="input-item">
+                    <label>min off</label>
+                    <input type="text" id="h2-min-off" placeholder="--">
+                </div>
+            </div>
+        </div>
+
+        <!-- H3 Sensor Card -->
+        <div class="relay-box" id="h3-card">
+            <div class="relay-label">
+                <span class="sensor-label">H3</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="temp-value"><span id="h3-val">--</span><small>C</small></span>
+                    <span class="state-indicator" id="h3-state">OFF</span>
+                </div>
+            </div>
+            
+            <div class="toggle-row">
+                <button class="toggle-pill" id="h3-btn" onclick="toggleRelay('h3')">OFF</button>
+                <div class="led-indicator" id="h3-led"></div>
+            </div>
+            
+            <div class="card-inputs">
+                <div class="input-item">
+                    <label>min on</label>
+                    <input type="text" id="h3-min-on" placeholder="--">
+                </div>
+                <button class="btn-set" onclick="sendConfig('h3')">SET</button>
+                <div class="input-item">
+                    <label>min off</label>
+                    <input type="text" id="h3-min-off" placeholder="--">
+                </div>
+            </div>
+        </div>
+
+        <!-- H4 Sensor Card -->
+        <div class="relay-box" id="h4-card">
+            <div class="relay-label">
+                <span class="sensor-label">H4</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="temp-value"><span id="h4-val">--</span><small>C</small></span>
+                    <span class="state-indicator" id="h4-state">OFF</span>
+                </div>
+            </div>
+            
+            <div class="toggle-row">
+                <button class="toggle-pill" id="h4-btn" onclick="toggleRelay('h4')">OFF</button>
+                <div class="led-indicator" id="h4-led"></div>
+            </div>
+            
+            <div class="card-inputs">
+                <div class="input-item">
+                    <label>min on</label>
+                    <input type="text" id="h4-min-on" placeholder="--">
+                </div>
+                <button class="btn-set" onclick="sendConfig('h4')">SET</button>
+                <div class="input-item">
+                    <label>min off</label>
+                    <input type="text" id="h4-min-off" placeholder="--">
+                </div>
+            </div>
+        </div>
+
+        <!-- H5 Sensor Card -->
+        <div class="relay-box" id="h5-card">
+            <div class="relay-label">
+                <span class="sensor-label">H5</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="temp-value"><span id="h5-val">--</span><small>C</small></span>
+                    <span class="state-indicator" id="h5-state">OFF</span>
+                </div>
+            </div>
+            
+            <div class="toggle-row">
+                <button class="toggle-pill" id="h5-btn" onclick="toggleRelay('h5')">OFF</button>
+                <div class="led-indicator" id="h5-led"></div>
+            </div>
+            
+            <div class="card-inputs">
+                <div class="input-item">
+                    <label>min on</label>
+                    <input type="text" id="h5-min-on" placeholder="--">
+                </div>
+                <button class="btn-set" onclick="sendConfig('h5')">SET</button>
+                <div class="input-item">
+                    <label>min off</label>
+                    <input type="text" id="h5-min-off" placeholder="--">
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
+    <script src="script.js"></script>
 </body>
 </html>

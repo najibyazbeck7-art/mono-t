@@ -1,11 +1,6 @@
 /* =========================================
     THERMO BETA - MASTER STYLESHEET
-    =========================================
-    Project: Remote Mushroom Lab Dashboard
-    Owner: Antonio
-    Layout: Mobile-First, Compact
-    =========================================
-*/
+    ========================================= */
 
 /* --- 1. GLOBAL THEME & RESET --- */
 body { 
@@ -14,20 +9,17 @@ body {
     color: white; 
     margin: 0; 
     padding: 10px; 
-    display: flex;
-    justify-content: center;
 }
 
-/* Main dark card wrapper */
+/* Main container */
+.main-container {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+/* App container */
 .app-container { 
-    display: flex;
-    flex-direction: column; 
-    width: 95%;
-    max-width: 400px; 
-    background: transparent;
     padding: 20px; 
-    border-radius: 24px; 
-    margin: auto;
     box-sizing: border-box;
 }
 
@@ -36,14 +28,9 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 10px; /* Reduced from 20px */
-    margin-bottom: 10px; /* Reduced space before actions */
+    padding-bottom: 10px;
+    margin-bottom: 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-#main-title {
-    font-size: 1.1rem; /* Smaller title */
-    margin: 0;
 }
 
 .header h2 {
@@ -53,7 +40,6 @@ body {
     letter-spacing: 1px;
 }
 
-/* Online/Offline pill */
 .status-pill { 
     padding: 4px 10px; 
     border-radius: 12px; 
@@ -65,120 +51,147 @@ body {
 .is-online { background: #065f46; color: #34d399; }
 .is-offline { background: #450a0a; color: #f87171; }
 
-
-/* --- HEADER CONTROLS --- */
-.header-controls {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end; /* Aligns pill and signal to the right */
-    justify-content: center;
-}
-
-/* --- Settings Gear --- */
-.settings-link {
-    text-decoration: none;
-    transition: transform 0.2s, color 0.2s;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.settings-link:active {
-    transform: scale(0.9); /* Visual feedback when tapped */
-}
-
-.gear-icon {
-    font-size: 1.2rem; /* Increased size for tap-friendliness */
-    color: #94a3b8; /* Muted slate color */
-}
-
-.settings-link:hover .gear-icon {
-    color: #34d399; /* Neon green glow on hover/active */
-    text-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
-}
-
-/* Room Bar */
-.room-selector {
-    background-color: #2c3e50;
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 15px;
-    border-radius: 10px;
-    margin: 20px 0;
-}
-
-/* Grid Layout */
-.sensors-grid {
+/* --- 3. SENSOR CARDS --- */
+.relay-container { 
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px;
+    gap: 10px;
+    width: 100%;
 }
 
-.sensor-card {
-    border-left: 4px solid #475569; /* Default gray border */
-    border-radius: 20px;
-    padding: 15px;
+.relay-box { 
     background: #334155; 
+    padding: 12px; 
+    border-radius: 12px; 
+    border-left: 4px solid #475569;
+    transition: 0.3s; 
+    box-sizing: border-box;
 }
 
-.card-top {
+.relay-box.active { border-left-color: #10b981; }
+
+.relay-label {
     display: flex;
     justify-content: space-between;
-    color: var(--orange);
-    font-weight: bold;
-    font-size: 1.2rem;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
 }
 
-.toggle-btn {
+.temp-value {
+    font-size: 1.2rem;
+    color: #fff;
+    font-weight: 600;
+}
 
-    background-color:#065f46;
-    color: white;
-    font-size: 10px;
-    font-weight: bold;
-    padding: 4px 15px;
-    border-radius: 20px;
-    text-align: center;
+.state-indicator { 
+    padding: 2px 6px; 
+    border-radius: 6px; 
+    font-size: 0.6em; 
+    font-weight: bold; 
+    background: #1e293b; 
+    color: #cbd5e1;
+    text-transform: uppercase;
+}
+
+.relay-box.active .state-indicator {
+    color: #34d399; 
+}
+
+/* --- 4. TOGGLE ROW --- */
+.toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin: 10px 0;
 }
 
-.input-controls {
+.toggle-pill {
+    background: #0f172a;
+    color: white;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 9px;
+    font-weight: 900;
+    cursor: pointer;
+    text-transform: uppercase;
+    min-width: 50px;
+}
+
+.led-indicator {
+    width: 8px;
+    height: 8px;
+    background: #334155;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.led-indicator.active {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+}
+
+/* --- 5. CARD INPUTS --- */
+.card-inputs {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
+    gap: 5px;
 }
 
-.input-group label {
-    display: block;
-    font-size: 9px;
-    color: #888;
+.input-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.input-item label {
+    font-size: 0.6em; 
+    color: #64748b; 
+    text-transform: uppercase;
+    margin-bottom: 2px;
     text-align: center;
 }
 
-.input-group input {
-    width: 40px;
-    background: #111;
-    border: 1px solid #444;
+.input-item input {
+    width: 35px;
+    height: 20px;
+    background: #1e293b;
+    border: 1px solid #475569;
     color: white;
-    border-radius: 5px;
+    font-size: 0.7em;
+    border-radius: 3px;
+    padding: 1px;
     text-align: center;
 }
 
 .btn-set {
-    background: none;
-    border: 1px solid blue;
-    color: skyblue;
-    font-size: 10px;
-    border-radius: 3px;
+    background: #10b981;
+    color: #ffffff;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: none;
     cursor: pointer;
+    text-transform: uppercase;
+    height: 24px;
+    transition: all 0.2s ease;
 }
 
-/* Bottom Box */
-.control-settings-box {
-    background-color: #cccccc;
-    color: black;
-    text-align: center;
-    padding: 20px;
-    margin-top: 20px;
-    border-radius: 10px;
-    font-weight: bold;
+.btn-set:hover {
+    background: #059669;
+}
+
+/* --- 6. RESPONSIVE --- */
+@media (max-width: 480px) {
+    .main-container {
+        padding: 0 5px;
+    }
+    
+    .app-container {
+        padding: 15px;
+    }
 }
