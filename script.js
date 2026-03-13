@@ -1,98 +1,123 @@
-/* SENSOR LOGIC */
+/* =========================================
+    THERMO BETA - DASHBOARD LOGIC
+   ========================================= */
 
-// MQTT Client Setup
-const client = new Paho.MQTT.Client("localhost", 9001, "thermo_client_" + Math.random().toString(16).substr(2, 8));
+const HOST = "64b3984aead9464a9b1aa9c3f34080bb.s1.eu.hivemq.cloud";
+const PORT = 8884; 
+const USER = "najibyazbeck";
+const PASS = "Zaqwsx123*";
+const CLIENT_ID = "THERMO_" + Math.random().toString(16).substr(2, 6);
 
-// Connection Options
-const options = {
-    timeout: 3,
-    onSuccess: onConnect,
-    onFailure: onFailure
-};
+let deferredPrompt;
+let activeTimers = {}; 
+let heartbeatTimeout; 
+const client = new Paho.MQTT.Client(HOST, PORT, CLIENT_ID);
 
-// Connect to MQTT Broker
-client.connect(options);
+// --- 1. MQTT CONNECTION & HEARTBEAT ---
 
-// Connection Success Handler
-function onConnect() {
-    console.log("Connected to MQTT Broker");
-    
-    // Update status pill
-    const statusPill = document.getElementById('status-pill');
-    if (statusPill) {
-        statusPill.textContent = 'ONLINE';
-        statusPill.className = 'status-pill is-online';
-    }
-    
-    // Subscribe to all sensor topics
-    client.subscribe("home/+/status");
-    client.subscribe("home/+/temp");
+function connectMQTT() {
+    console.log("Linking to Cloud...");
+    client.connect({
+        userName: USER, password: PASS, useSSL: true,
+        onSuccess: () => {
+            updateStatus("CHECKING...", "offline"); 
+            client.subscribe("home/status/#"); 
+            client.subscribe("home/relay/#");
+            client.subscribe("home/availability");
+            client.subscribe("home/name/#"); // Listen for cloud backup names
+            console.log("Broker Connected.");
+        },
+        onFailure: (err) => {
+            updateStatus("DISCONNECTED", "offline");
+            console.log("Offline: Check Internet");
+            setTimeout(connectMQTT, 5000);
+        }
+    });
 }
 
-// Connection Failure Handler
-function onFailure(message) {
-    console.log("Connection failed: " + message.errorMessage);
-    
-    // Update status pill
-    const statusPill = document.getElementById('status-pill');
-    if (statusPill) {
-        statusPill.textContent = 'OFFLINE';
-        statusPill.className = 'status-pill is-offline';
+client.onMessageArrived = (message) => {
+    const topic = message.destinationName;
+    const payload = message.payloadString;
+
+    // A. Handle Hardware Availability
+    if (topic.includes("/availability")) {
+        updateStatus(payload, payload === "ONLINE" ? "online" : "offline");
+        console.log(`Device status: ${payload}`);
+        
+        if (payload === "OFFLINE") {
+            clearTimeout(heartbeatTimeout);
+            return; 
+        }
     }
-    
-    setTimeout(() => client.connect(options), 5000); // Retry after 5 seconds
-}
 
-// Update UI when a message arrives
-client.onMessageArrived = (msg) => {
-    const topic = msg.destinationName;
-    const id = topic.split('/').pop(); // Extract 'at', 'h1', etc.
-    const payload = msg.payloadString;
+    // B. Handle Relay State
+    if (topic.includes("/status")) {
+        const id = topic.split('/')[2];
+        updateRelayUI(id, payload);
+        console.log(`Relay ${id} turned ${payload}`);
+        
+        const currentBar = document.getElementById('status-pill').innerText;
+        if (!currentBar.includes("OFFLINE")) updateStatus("ONLINE", "online");
+    }
 
-    // Handle Relay Status Updates
-    if (topic.includes("status")) {
-        const btn = document.getElementById(`${id}-btn`);
-        const led = document.getElementById(`${id}-led`);
-        const card = document.getElementById(`${id}-card`);
-        const stateIndicator = document.getElementById(`${id}-state`);
-        const isActive = (payload === "ON");
+    // C. Handle Temperature Updates
+    if (topic.includes("/temp")) {
+        const id = topic.split('/')[2];
+        updateTemperatureUI(id, payload);
+        console.log(`Temperature ${id}: ${payload}`);
+    }
 
-        if (btn) {
-            btn.innerText = payload;
-            btn.style.backgroundColor = isActive ? "#059669" : "#0f172a";
+    // D. Handle Name Sync from Cloud
+    if (topic.includes("/name/")) {
+        const id = topic.split('/')[2];
+        if (localStorage.getItem(`relay-name-${id}`) !== payload) {
+            localStorage.setItem(`relay-name-${id}`, payload);
+            applyCustomNames();
+            console.log(`Updated name for Relay ${id}: ${payload}`);
         }
-        if (led) {
-            led.className = isActive ? "led-indicator active" : "led-indicator";
-        }
-        if (card) {
-            card.className = isActive ? "relay-box active" : "relay-box";
-        }
-        if (stateIndicator) {
-            stateIndicator.innerText = payload;
-        }
-    } 
-    
-    // Handle Temperature Updates
-    else if (topic.includes("temp")) {
-        const valElem = document.getElementById(`${id}-val`);
-        if (valElem) valElem.innerText = payload;
+    }
+
+    // E. Heartbeat Timer (65s)
+    if (payload !== "OFFLINE") {
+        clearTimeout(heartbeatTimeout);
+        heartbeatTimeout = setTimeout(() => {
+            updateStatus("OFFLINE (TIMEOUT)", "offline");
+            console.log("Signal Lost: Heartbeat Timeout");
+        }, 65000);
     }
 };
 
-// Toggle Relay Function
+// --- 2. COMMANDS & UI ---
+
 function toggleRelay(id) {
+    if (!client.isConnected()) return;
+    
     const btn = document.getElementById(`${id}-btn`);
     const currentState = btn.innerText;
     const nextState = (currentState === "ON") ? "OFF" : "ON";
     
-    const message = new Paho.MQTT.Message(nextState);
-    message.destinationName = `home/relay/${id}`;
-    message.retained = true;
-    client.send(message);
+    publishCommand(id, nextState);
 }
 
-// Send Threshold Config (Min On/Off)
+function publishCommand(num, val) {
+    if (!client.isConnected()) return;
+    const message = new Paho.MQTT.Message(val);
+    message.destinationName = `home/relay/${num}`;
+    message.retained = true; 
+    client.send(message);
+
+    if (val === "ON") {
+        const input = document.getElementById(`timer-input-${num}`);
+        const secs = input ? parseInt(input.value) : 0;
+        if (secs > 0) startTimer(num, secs);
+    } else {
+        stopTimer(num);
+    }
+}
+
 function sendConfig(id) {
+    if (!client.isConnected()) return;
+    
     const minOn = document.getElementById(`${id}-min-on`).value;
     const minOff = document.getElementById(`${id}-min-off`).value;
     
@@ -101,3 +126,106 @@ function sendConfig(id) {
     client.send(msg);
     console.log(`Config sent for ${id}: ${minOn}/${minOff}`);
 }
+
+function updateRelayUI(id, state) {
+    const btn = document.getElementById(`${id}-btn`);
+    const led = document.getElementById(`${id}-led`);
+    const card = document.getElementById(`${id}-card`);
+    const stateIndicator = document.getElementById(`${id}-state`);
+    const isActive = (state === "ON");
+
+    if (btn) {
+        btn.innerText = state;
+        btn.style.backgroundColor = isActive ? "#059669" : "#0f172a";
+    }
+    if (led) {
+        led.className = isActive ? "led-indicator active" : "led-indicator";
+    }
+    if (card) {
+        card.className = isActive ? "relay-box active" : "relay-box";
+    }
+    if (stateIndicator) {
+        stateIndicator.innerText = state;
+    }
+}
+
+function updateTemperatureUI(id, temp) {
+    const valElem = document.getElementById(`${id}-val`);
+    if (valElem) valElem.innerText = temp;
+}
+
+function updateStatus(text, status) {
+    const statusPill = document.getElementById('status-pill');
+    if (!statusPill) return;
+    statusPill.innerText = text;
+    statusPill.className = (status === "online") ? 'status-pill is-online' : 'status-pill is-offline';
+    statusPill.style.backgroundColor = (text === "DISCONNECTED") ? "#475569" : "";
+}
+
+// --- 3. UTILITIES ---
+
+function startTimer(num, seconds) {
+    stopTimer(num);
+    let timeLeft = seconds;
+    const display = document.getElementById(`countdown-${num}`);
+    activeTimers[num] = setInterval(() => {
+        timeLeft--;
+        if (display) display.innerText = `⏱ ${timeLeft}s`;
+        if (timeLeft <= 0) {
+            publishCommand(num, "OFF");
+            stopTimer(num);
+        }
+    }, 1000);
+}
+
+function stopTimer(num) {
+    if (activeTimers[num]) {
+        clearInterval(activeTimers[num]);
+        delete activeTimers[num];
+        const disp = document.getElementById(`countdown-${num}`);
+        if(disp) disp.innerText = "";
+    }
+}
+
+function saveLog(msg, color) {
+    const time = new Date().toLocaleTimeString([], { hour12: false });
+    let logs = JSON.parse(localStorage.getItem('thermo_logs') || '[]');
+    logs.push({ time, msg, color });
+    if (logs.length > 20) logs.shift();
+    localStorage.setItem('thermo_logs', JSON.stringify(logs));
+}
+
+function applyCustomNames() {
+    for (let i = 1; i <= 6; i++) {
+        const id = i === 1 ? 'at' : `h${i-1}`;
+        const name = localStorage.getItem(`relay-name-${id}`);
+        const label = document.querySelector(`#${id}-card .sensor-label`);
+        if (name && label) label.innerText = name;
+    }
+}
+
+function shareDashboard() {
+    if (navigator.share) {
+        navigator.share({ title: 'Thermo Hub', url: window.location.href });
+    }
+}
+
+// --- 4. SENSOR SIMULATION (Temporary) ---
+function simulateTemperature() {
+    // Generate random temperatures for all sensors
+    const sensors = ['at', 'h1', 'h2', 'h3', 'h4', 'h5'];
+    sensors.forEach(sensor => {
+        const mockTemp = (Math.random() * (26 - 22) + 22).toFixed(1);
+        updateTemperatureUI(sensor, mockTemp);
+    });
+}
+
+// Start simulation every 5 seconds
+setInterval(simulateTemperature, 5000);
+
+// Init
+window.addEventListener('DOMContentLoaded', () => {
+    applyCustomNames();
+    connectMQTT();
+    simulateTemperature(); // Run once immediately
+});
