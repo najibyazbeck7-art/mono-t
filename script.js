@@ -428,6 +428,49 @@ function testMQTT() {
     }, 3000);
 }
 
+function testWithoutMQTT() {
+    addLog("=== TESTING WITHOUT MQTT ===", "info");
+    addLog("This will test if the timer logic works", "info");
+    
+    let isOn = false;
+    let seconds = 0;
+    const countdown = document.getElementById('at-countdown');
+    
+    const testInterval = setInterval(() => {
+        seconds++;
+        
+        if (seconds <= 5) {
+            // OFF phase
+            if (countdown) {
+                countdown.textContent = `OFF: ${6-seconds}s`;
+                countdown.style.color = "#ef4444";
+            }
+            addLog(`Test OFF phase: ${6-seconds}s remaining`, "info");
+        } else if (seconds <= 10) {
+            // ON phase  
+            if (countdown) {
+                countdown.textContent = `ON: ${11-seconds}s`;
+                countdown.style.color = "#10b981";
+            }
+            addLog(`Test ON phase: ${11-seconds}s remaining`, "info");
+        } else {
+            // Reset
+            seconds = 0;
+            addLog("Test loop complete - restarting", "info");
+        }
+    }, 1000);
+    
+    // Store for cleanup
+    activeCycles['test'] = testInterval;
+    
+    setTimeout(() => {
+        clearInterval(testInterval);
+        delete activeCycles['test'];
+        if (countdown) countdown.textContent = "";
+        addLog("=== TEST COMPLETE ===", "info");
+    }, 12000);
+}
+
 // --- LOG WINDOW FUNCTIONS ---
 function addLog(message, type = 'info') {
     const logContent = document.getElementById('log-content');
@@ -506,6 +549,7 @@ window.addEventListener('DOMContentLoaded', () => {
     console.log("Type 'testRelays()' to test relay controls");
     console.log("Type 'mqttStatus()' to check MQTT connection");
     console.log("Type 'testMQTT()' to test direct MQTT commands");
+    console.log("Type 'testWithoutMQTT()' to test timer logic only");
     console.log("Type 'stopAllCycles()' to stop all cycles");
     console.log("===========================");
 });
