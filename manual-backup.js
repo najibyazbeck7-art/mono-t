@@ -1,6 +1,8 @@
 /* =========================================
-    THERMO BETA - DASHBOARD LOGIC
+    THERMO BETA - MANUAL BACKUP
    ========================================= */
+// This file contains the working manual relay control functionality
+// Saved for future reference
 
 const HOST = "64b3984aead9464a9b1aa9c3f34080bb.s1.eu.hivemq.cloud";
 const PORT = 8884; 
@@ -194,105 +196,7 @@ function publishCommand(num, val) {
     }
 }
 
-function sendConfig(id) {
-    const onInput = document.getElementById(`${id}-min-on`);
-    const offInput = document.getElementById(`${id}-min-off`);
-    const setBtn = event.target;
-    
-    const onSeconds = parseInt(onInput.value) || 0;
-    const offSeconds = parseInt(offInput.value) || 0;
-    
-    addLog(`${id} Timer: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
-    
-    // Stop existing timer if running
-    if (activeCycles[id]) {
-        clearInterval(activeCycles[id]);
-        delete activeCycles[id];
-        addLog(`Stopped existing timer for ${id}`, "info");
-        setBtn.textContent = "SET";
-        setBtn.style.background = "#10b981";
-        
-        // Clear countdown and turn OFF
-        const countdown = document.getElementById(`${id}-countdown`);
-        if (countdown) countdown.textContent = "";
-        
-        // Convert to relay number
-        let relayNumber;
-        switch(id) {
-            case 'at': relayNumber = 1; break;
-            case 'h1': relayNumber = 2; break;
-            case 'h2': relayNumber = 3; break;
-            case 'h3': relayNumber = 4; break;
-            default: relayNumber = parseInt(id); break;
-        }
-        
-        publishCommand(relayNumber, "OFF");
-        return;
-    }
-    
-    // Start timer if both values > 0
-    if (onSeconds > 0 && offSeconds > 0) {
-        addLog(`Starting timer for ${id}: ${onSeconds}s ON → ${offSeconds}s OFF`, "info");
-        setBtn.textContent = "STOP";
-        setBtn.style.background = "#ef4444";
-        
-        // Start timer
-        startTimerLoop(id, onSeconds, offSeconds);
-    } else {
-        addLog("Both ON and OFF values must be > 0", "error");
-    }
-}
-
-function startTimerLoop(id, onSeconds, offSeconds) {
-    let isOnPhase = false;
-    let currentSeconds = 0;
-    let targetSeconds = offSeconds; // Start with OFF phase
-    const countdown = document.getElementById(`${id}-countdown`);
-    
-    // Convert to relay number
-    let relayNumber;
-    switch(id) {
-        case 'at': relayNumber = 1; break;
-        case 'h1': relayNumber = 2; break;
-        case 'h2': relayNumber = 3; break;
-        case 'h3': relayNumber = 4; break;
-        default: relayNumber = parseInt(id); break;
-    }
-    
-    // Turn OFF initially
-    publishCommand(relayNumber, "OFF");
-    isOnPhase = false;
-    currentSeconds = 0;
-    targetSeconds = offSeconds;
-    
-    addLog(`${id} Timer: Starting with OFF for ${offSeconds}s`, "info");
-    
-    activeCycles[id] = setInterval(() => {
-        currentSeconds++;
-        
-        // Update countdown
-        if (countdown) {
-            const phase = isOnPhase ? "ON" : "OFF";
-            const remaining = targetSeconds - currentSeconds;
-            countdown.textContent = `${phase}: ${remaining}s`;
-            countdown.style.color = isOnPhase ? "#10b981" : "#ef4444";
-        }
-        
-        // Check if phase is complete
-        if (currentSeconds >= targetSeconds) {
-            // Switch phase
-            isOnPhase = !isOnPhase;
-            currentSeconds = 0;
-            targetSeconds = isOnPhase ? onSeconds : offSeconds;
-            
-            const command = isOnPhase ? "ON" : "OFF";
-            addLog(`${id} Timer: Switching to ${command} for ${targetSeconds}s`, "info");
-            
-            // Send MQTT command
-            publishCommand(relayNumber, command);
-        }
-    }, 1000);
-}
+// --- 3. UI UPDATES ---
 
 function updateRelayUI(id, state) {
     const btn = document.getElementById(`${id}-btn`);
@@ -333,110 +237,166 @@ function updateStatus(text, status) {
     const statusPill = document.getElementById('status-pill');
     if (!statusPill) return;
     statusPill.innerText = text;
-    statusPill.className = (status === "online") ? 'status-pill is-online' : 'status-pill is-offline';
-    statusPill.style.backgroundColor = (text === "DISCONNECTED") ? "#475569" : "";
+    statusPill.className = `status-${status}`;
 }
 
-// --- 3. UTILITIES ---
+function applyCustomNames() {
+    // Apply saved names to UI
+    for (let i = 1; i <= 4; i++) {
+        const name = localStorage.getItem(`relay-name-${i}`);
+        if (name) {
+            const label = document.querySelector(`.relay-box:nth-child(${i}) .sensor-label`);
+            if (label) label.innerText = name;
+        }
+    }
+}
 
-function startTimer(num, seconds) {
-    stopTimer(num);
-    let timeLeft = seconds;
-    const display = document.getElementById(`countdown-${num}`);
-    activeTimers[num] = setInterval(() => {
-        timeLeft--;
-        if (display) display.innerText = `⏱ ${timeLeft}s`;
-        if (timeLeft <= 0) {
-            publishCommand(num, "OFF");
-            stopTimer(num);
+// --- 4. UTILITIES ---
+
+function simulateTemperature() {
+    // Simulate temperature readings for demo
+    const sensors = ['at', 'h1', 'h2', 'h3'];
+    sensors.forEach(id => {
+        const temp = (20 + Math.random() * 15).toFixed(1);
+        updateTemperatureUI(id, temp);
+    });
+}
+
+function sendConfig(id) {
+    // Only work with AT relay for now
+    if (id !== 'at') {
+        addLog("Only AT relay is configured for loop", "error");
+        return;
+    }
+    
+    const onInput = document.getElementById(`${id}-min-on`);
+    const offInput = document.getElementById(`${id}-min-off`);
+    const setBtn = event.target;
+    
+    const onSeconds = parseInt(onInput.value) || 0;
+    const offSeconds = parseInt(offInput.value) || 0;
+    
+    addLog(`AT Loop: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
+    
+    // Stop existing loop if running
+    if (activeCycles[id]) {
+        clearInterval(activeCycles[id]);
+        delete activeCycles[id];
+        addLog("Stopped existing AT loop", "info");
+        setBtn.textContent = "SET";
+        setBtn.style.background = "#10b981";
+        
+        // Clear countdown and turn OFF
+        const countdown = document.getElementById(`${id}-countdown`);
+        if (countdown) countdown.textContent = "";
+        publishCommand(1, "OFF");
+        return;
+    }
+    
+    // Start loop if both values > 0
+    if (onSeconds > 0 && offSeconds > 0) {
+        addLog(`Starting AT loop: ${onSeconds}s ON → ${offSeconds}s OFF`, "info");
+        setBtn.textContent = "STOP";
+        setBtn.style.background = "#ef4444";
+        
+        // Start simple loop
+        startSimpleLoop(onSeconds, offSeconds);
+    } else {
+        addLog("Both ON and OFF values must be > 0", "error");
+    }
+}
+
+function startSimpleLoop(onSeconds, offSeconds) {
+    let isOn = false;
+    let currentSeconds = 0;
+    let targetSeconds = offSeconds; // Start with OFF
+    const countdown = document.getElementById('at-countdown');
+    
+    // Turn OFF initially
+    publishCommand(1, "OFF");
+    isOn = false;
+    currentSeconds = 0;
+    targetSeconds = offSeconds;
+    
+    addLog(`AT Loop: Starting with OFF for ${offSeconds}s`, "info");
+    
+    activeCycles['at'] = setInterval(() => {
+        currentSeconds++;
+        
+        // Update countdown
+        if (countdown) {
+            const phase = isOn ? "ON" : "OFF";
+            const remaining = targetSeconds - currentSeconds;
+            countdown.textContent = `${phase}: ${remaining}s`;
+            countdown.style.color = isOn ? "#10b981" : "#ef4444";
+        }
+        
+        // Check if phase is complete
+        if (currentSeconds >= targetSeconds) {
+            // Switch phase
+            isOn = !isOn;
+            currentSeconds = 0;
+            targetSeconds = isOn ? onSeconds : offSeconds;
+            
+            const command = isOn ? "ON" : "OFF";
+            addLog(`AT Loop: Switching to ${command} for ${targetSeconds}s`, "info");
+            
+            // Send MQTT command
+            publishCommand(1, command);
         }
     }, 1000);
 }
 
-function stopTimer(num) {
-    if (activeTimers[num]) {
-        clearInterval(activeTimers[num]);
-        delete activeTimers[num];
-        const disp = document.getElementById(`countdown-${num}`);
-        if(disp) disp.innerText = "";
-    }
-}
-
-function saveLog(msg, color) {
-    const time = new Date().toLocaleTimeString([], { hour12: false });
-    let logs = JSON.parse(localStorage.getItem('thermo_logs') || '[]');
-    logs.push({ time, msg, color });
-    if (logs.length > 20) logs.shift();
-    localStorage.setItem('thermo_logs', JSON.stringify(logs));
-}
-
-function applyCustomNames() {
-    for (let i = 1; i <= 6; i++) {
-        const id = i === 1 ? 'at' : `h${i-1}`;
-        const name = localStorage.getItem(`relay-name-${id}`);
-        const label = document.querySelector(`#${id}-card .sensor-label`);
-        if (name && label) label.innerText = name;
-    }
-}
-
-function shareDashboard() {
-    if (navigator.share) {
-        navigator.share({ title: 'Thermo Hub', url: window.location.href });
-    }
-}
-
-// --- 4. SENSOR SIMULATION (Temporary) ---
-function simulateTemperature() {
-    // Generate random temperatures for all sensors
-    const sensors = ['at', 'h1', 'h2', 'h3', 'h4', 'h5'];
-    sensors.forEach(sensor => {
-        const mockTemp = (Math.random() * (26 - 22) + 22).toFixed(1);
-        updateTemperatureUI(sensor, mockTemp);
-    });
-}
-
-// Start simulation every 5 seconds
-setInterval(simulateTemperature, 5000);
-
-// --- 5. TEST FUNCTIONS ---
-function testRelayControls() {
-    console.log("Testing relay controls...");
-    const testRelays = ['at', 'h1', 'h2', 'h3'];
+// --- 5. LOG WINDOW FUNCTIONS ---
+function addLog(message, type = 'info') {
+    const logContent = document.getElementById('log-content');
+    if (!logContent) return;
     
-    testRelays.forEach((relay, index) => {
-        setTimeout(() => {
-            console.log(`Testing relay ${relay}`);
-            toggleRelay(relay);
-        }, index * 1000); // Test each relay 1 second apart
-    });
-}
-
-function discoverTopics() {
-    console.log("=== DISCOVERING MQTT TOPICS ===");
-    console.log("Click a relay button and watch which topic your ESP32 responds to...");
-    console.log("Your ESP32 is publishing to these status topics:");
-    console.log("- home/status/at, home/status/h1, home/status/h2, home/status/h3");
-    console.log("But it might be listening to different topics for commands!");
-    console.log("Watch the console above to see all topics being tried.");
-}
-
-function testSingleTopic(topic, relayId = 'at') {
-    console.log(`Testing single topic: ${topic} for relay ${relayId}`);
-    const message = new Paho.MQTT.Message("ON");
-    message.destinationName = topic;
-    message.retained = true;
-    client.send(message);
+    const timestamp = new Date().toLocaleTimeString([], { hour12: false });
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry ${type}`;
+    logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
     
-    setTimeout(() => {
-        const offMsg = new Paho.MQTT.Message("OFF");
-        offMsg.destinationName = topic;
-        offMsg.retained = true;
-        client.send(offMsg);
-        console.log("Sent OFF command");
-    }, 2000);
+    logContent.appendChild(logEntry);
+    logContent.scrollTop = logContent.scrollHeight;
+    
+    // Keep only last 100 entries
+    const entries = logContent.children;
+    if (entries.length > 100) {
+        logContent.removeChild(entries[0]);
+    }
 }
 
-// --- DEBUG FUNCTIONS ---
+function toggleLog() {
+    const logWindow = document.getElementById('log-window');
+    if (logWindow) {
+        logWindow.style.display = logWindow.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function clearLog() {
+    const logContent = document.getElementById('log-content');
+    if (logContent) {
+        logContent.innerHTML = '';
+        addLog('Log cleared', 'info');
+    }
+}
+
+// --- 6. CYCLE MANAGEMENT ---
+function stopAllCycles() {
+    addLog("Stopping all active cycles...", "info");
+    Object.keys(activeCycles).forEach(id => {
+        if (activeCycles[id] && activeCycles[id].clear) {
+            activeCycles[id].clear();
+        }
+        // Clear countdown display
+        const countdown = document.getElementById(`${id}-countdown`);
+        if (countdown) countdown.textContent = "";
+    });
+    activeCycles = {};
+}
+
+// --- 7. DEBUG FUNCTIONS ---
 function testMQTT() {
     addLog("=== MQTT TEST START ===", "info");
     addLog("Testing direct MQTT command...", "info");
@@ -454,7 +414,7 @@ function testMQTT() {
 
 function testWithoutMQTT() {
     addLog("=== TESTING WITHOUT MQTT ===", "info");
-    addLog("This will test if the timer logic works", "info");
+    addLog("This will test if timer logic works", "info");
     
     let isOn = false;
     let seconds = 0;
@@ -495,55 +455,7 @@ function testWithoutMQTT() {
     }, 12000);
 }
 
-// --- LOG WINDOW FUNCTIONS ---
-function addLog(message, type = 'info') {
-    const logContent = document.getElementById('log-content');
-    if (!logContent) return;
-    
-    const timestamp = new Date().toLocaleTimeString([], { hour12: false });
-    const logEntry = document.createElement('div');
-    logEntry.className = `log-entry ${type}`;
-    logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
-    
-    logContent.appendChild(logEntry);
-    logContent.scrollTop = logContent.scrollHeight;
-    
-    // Keep only last 100 entries
-    const entries = logContent.children;
-    if (entries.length > 100) {
-        logContent.removeChild(entries[0]);
-    }
-}
-
-function toggleLog() {
-    const logWindow = document.getElementById('log-window');
-    if (logWindow) {
-        logWindow.style.display = logWindow.style.display === 'none' ? 'block' : 'none';
-    }
-}
-
-function clearLog() {
-    const logContent = document.getElementById('log-content');
-    if (logContent) {
-        logContent.innerHTML = '';
-        addLog('Log cleared', 'info');
-    }
-}
-
-// --- CYCLE MANAGEMENT ---
-function stopAllCycles() {
-    addLog("Stopping all active cycles...", "info");
-    Object.keys(activeCycles).forEach(id => {
-        if (activeCycles[id] && activeCycles[id].clear) {
-            activeCycles[id].clear();
-        }
-        // Clear countdown display
-        const countdown = document.getElementById(`${id}-countdown`);
-        if (countdown) countdown.textContent = "";
-    });
-    activeCycles = {};
-}
-
+// --- 8. INITIALIZATION ---
 // Cleanup on page unload
 window.addEventListener('beforeunload', stopAllCycles);
 
@@ -577,3 +489,7 @@ window.addEventListener('DOMContentLoaded', () => {
     console.log("Type 'stopAllCycles()' to stop all cycles");
     console.log("===========================");
 });
+
+// =========================================
+    END OF MANUAL BACKUP
+   =========================================
