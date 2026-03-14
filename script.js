@@ -194,84 +194,86 @@ function publishCommand(num, val) {
 }
 
 function sendConfig(id) {
-    const minOnInput = document.getElementById(`${id}-min-on`);
+    // Only work with AT relay for now
+    if (id !== 'at') {
+        addLog("Only AT relay is configured for loop", "error");
+        return;
+    }
+    
+    const onInput = document.getElementById(`${id}-min-on`);
+    const offInput = document.getElementById(`${id}-min-off`);
     const setBtn = event.target;
     
-    const seconds = parseInt(minOnInput.value) || 0;
+    const onSeconds = parseInt(onInput.value) || 0;
+    const offSeconds = parseInt(offInput.value) || 0;
     
-    addLog(`Timer for ${id}: ${seconds} seconds`, "info");
+    addLog(`AT Loop: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
     
-    // Stop existing timer if running
+    // Stop existing loop if running
     if (activeCycles[id]) {
-        clearTimeout(activeCycles[id]);
+        clearInterval(activeCycles[id]);
         delete activeCycles[id];
-        addLog(`Stopped existing timer for ${id}`, "info");
+        addLog("Stopped existing AT loop", "info");
         setBtn.textContent = "SET";
         setBtn.style.background = "#10b981";
         
         // Clear countdown and turn OFF
         const countdown = document.getElementById(`${id}-countdown`);
         if (countdown) countdown.textContent = "";
-        publishCommand(id, "OFF");
+        publishCommand(1, "OFF");
         return;
     }
     
-    // Start timer if seconds > 0
-    if (seconds > 0) {
-        addLog(`Starting timer for ${id}: ${seconds} seconds`, "info");
+    // Start loop if both values > 0
+    if (onSeconds > 0 && offSeconds > 0) {
+        addLog(`Starting AT loop: ${onSeconds}s ON → ${offSeconds}s OFF`, "info");
         setBtn.textContent = "STOP";
         setBtn.style.background = "#ef4444";
         
-        // Start timer
-        startTimer(id, seconds);
+        // Start simple loop
+        startSimpleLoop(onSeconds, offSeconds);
     } else {
-        addLog(`Invalid timer value for ${id}. Must be > 0`, "error");
+        addLog("Both ON and OFF values must be > 0", "error");
     }
 }
 
-function startTimer(id, seconds) {
-    let timeLeft = seconds;
-    const countdown = document.getElementById(`${id}-countdown`);
+function startSimpleLoop(onSeconds, offSeconds) {
+    let isOn = false;
+    let currentSeconds = 0;
+    let targetSeconds = offSeconds; // Start with OFF
+    const countdown = document.getElementById('at-countdown');
     
-    addLog(`${id} timer: Starting ${seconds} second countdown`, "info");
+    // Turn OFF initially
+    publishCommand(1, "OFF");
+    isOn = false;
+    currentSeconds = 0;
+    targetSeconds = offSeconds;
     
-    // Turn relay ON immediately
-    publishCommand(id, "ON");
+    addLog(`AT Loop: Starting with OFF for ${offSeconds}s`, "info");
     
-    // Update countdown display
-    if (countdown) {
-        countdown.textContent = `ON: ${timeLeft}s`;
-        countdown.style.color = "#10b981";
-    }
-    
-    // Countdown interval
-    activeCycles[id] = setInterval(() => {
-        timeLeft--;
+    activeCycles['at'] = setInterval(() => {
+        currentSeconds++;
         
+        // Update countdown
         if (countdown) {
-            countdown.textContent = `ON: ${timeLeft}s`;
+            const phase = isOn ? "ON" : "OFF";
+            const remaining = targetSeconds - currentSeconds;
+            countdown.textContent = `${phase}: ${remaining}s`;
+            countdown.style.color = isOn ? "#10b981" : "#ef4444";
         }
         
-        addLog(`${id} timer: ${timeLeft} seconds remaining`, "info");
-        
-        if (timeLeft <= 0) {
-            // Timer finished - turn OFF
-            clearInterval(activeCycles[id]);
-            delete activeCycles[id];
+        // Check if phase is complete
+        if (currentSeconds >= targetSeconds) {
+            // Switch phase
+            isOn = !isOn;
+            currentSeconds = 0;
+            targetSeconds = isOn ? onSeconds : offSeconds;
             
-            addLog(`${id} timer: Finished - turning OFF`, "info");
-            publishCommand(id, "OFF");
+            const command = isOn ? "ON" : "OFF";
+            addLog(`AT Loop: Switching to ${command} for ${targetSeconds}s`, "info");
             
-            if (countdown) {
-                countdown.textContent = "";
-            }
-            
-            // Reset button
-            const setBtn = document.querySelector(`#${id}-card .btn-set`);
-            if (setBtn) {
-                setBtn.textContent = "SET";
-                setBtn.style.background = "#10b981";
-            }
+            // Send MQTT command
+            publishCommand(1, command);
         }
     }, 1000);
 }
