@@ -118,38 +118,13 @@ function toggleRelay(id) {
 }
 
 function publishCommand(num, val) {
-    if (!client.isConnected()) {
-        console.log("Cannot send command - MQTT not connected");
-        return;
-    }
-    
-    // Try the most common ESP32 topic formats
-    const topics = [
-        `home/relay/${num}`,        // Standard format
-        `home/${num}/relay`,        // Alternative
-        `relay/${num}`,             // Simple format
-        `thermo/relay/${num}`,      // Thermo-specific
-        `device/relay/${num}`,      // Device-specific
-        `control/${num}`,           // Control topic
-        `${num}/set`,               // Direct set
-        `set/${num}`,               // Set command
-        `cmd/${num}`,               // Command topic
-        `home/${num}/set`,          // Home set
-        `home/set/${num}`           // Home set alternative
-    ];
-    
-    console.log(`=== Publishing command for relay ${num}: ${val} ===`);
-    
-    topics.forEach((topic, index) => {
-        const message = new Paho.MQTT.Message(val);
-        message.destinationName = topic;
-        message.retained = true; 
-        
-        console.log(`[${index + 1}] Publishing to: ${topic}`);
-        client.send(message);
-    });
-    
-    console.log(`=== Sent command to ${topics.length} different topics ===`);
+    if (!client.isConnected()) return;
+    const message = new Paho.MQTT.Message(val);
+    message.destinationName = `home/relay/${num}`;
+    message.retained = true; 
+    client.send(message);
+
+    console.log(`Publishing to: home/relay/${num}, payload: ${val}`);
 
     if (val === "ON") {
         const input = document.getElementById(`timer-input-${num}`);
