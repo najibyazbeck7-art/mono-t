@@ -11,6 +11,7 @@ const CLIENT_ID = "THERMO_" + Math.random().toString(16).substr(2, 6);
 let deferredPrompt;
 let activeTimers = {}; 
 let heartbeatTimeout; 
+let activeCycles = {}; // Store active cycle intervals
 const client = new Paho.MQTT.Client(HOST, PORT, CLIENT_ID);
 
 // --- 1. MQTT CONNECTION & HEARTBEAT ---
@@ -185,15 +186,59 @@ function publishCommand(num, val) {
 }
 
 function sendConfig(id) {
-    if (!client.isConnected()) return;
+    const minOnInput = document.getElementById(`${id}-min-on`);
+    const minOffInput = document.getElementById(`${id}-min-off`);
+    const setBtn = event.target;
     
-    const minOn = document.getElementById(`${id}-min-on`).value;
-    const minOff = document.getElementById(`${id}-min-off`).value;
+    const minOn = parseInt(minOnInput.value) || 0;
+    const minOff = parseInt(minOffInput.value) || 0;
     
-    const msg = new Paho.MQTT.Message(`${minOn},${minOff}`);
-    msg.destinationName = `home/config/${id}`;
-    client.send(msg);
-    console.log(`Config sent for ${id}: ${minOn}/${minOff}`);
+    addLog(`Config for ${id}: ${minOn}min ON / ${minOff}min OFF`, "info");
+    
+    // Stop existing cycle if running
+    if (activeCycles[id]) {
+        clearInterval(activeCycles[id]);
+        delete activeCycles[id];
+        addLog(`Stopped existing cycle for ${id}`, "info");
+        setBtn.textContent = "SET";
+        setBtn.style.background = "#10b981";
+    }
+    
+    // Start new cycle if both values > 0
+    if (minOn > 0 && minOff > 0) {
+        addLog(`Starting cycle for ${id}: ${minOn}min ON → ${minOff}min OFF`, "info");
+        setBtn.textContent = "STOP";
+        setBtn.style.background = "#ef4444";
+        
+        // Start with ON phase
+        startCycle(id, minOn, minOff);
+    } else {
+        addLog(`Invalid cycle values for ${id}. Both must be > 0`, "error");
+    }
+}
+
+function startCycle(id, minOn, minOff) {
+    let isOnPhase = true;
+    
+    function runCycle() {
+        const duration = isOnPhase ? minOn * 60 * 1000 : minOff * 60 * 1000;
+        const phase = isOnPhase ? "ON" : "OFF";
+        const minutes = isOnPhase ? minOn : minOff;
+        
+        addLog(`${id} cycle: ${phase} for ${minutes} minutes`, "info");
+        publishCommand(id, phase);
+        
+        // Toggle for next cycle
+        isOnPhase = !isOnPhase;
+    }
+    
+    // Start first phase immediately
+    runCycle();
+    
+    // Set up recurring cycle
+    activeCycles[id] = setInterval(() => {
+        runCycle();
+    }, (minOn + minOff) * 60 * 1000); // Total cycle time
 }
 
 function updateRelayUI(id, state) {
@@ -365,6 +410,19 @@ function clearLog() {
     }
 }
 
+// --- CYCLE MANAGEMENT ---
+function stopAllCycles() {
+    addLog("Stopping all active cycles...", "info");
+    Object.keys(activeCycles).forEach(id => {
+        clearInterval(activeCycles[id]);
+        addLog(`Stopped cycle for ${id}`, "info");
+    });
+    activeCycles = {};
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', stopAllCycles);
+
 // Init
 window.addEventListener('DOMContentLoaded', () => {
     applyCustomNames();
@@ -390,7 +448,6 @@ window.addEventListener('DOMContentLoaded', () => {
     console.log("=== MQTT DEBUG COMMANDS ===");
     console.log("Type 'testRelays()' to test relay controls");
     console.log("Type 'mqttStatus()' to check MQTT connection");
-    console.log("Type 'discoverTopics()' to see topic discovery guide");
-    console.log("Type 'testSingleTopic(\"your/topic\")' to test specific topic");
+    console.log("Type 'stopAllCycles()' to stop all cycles");
     console.log("===========================");
 });
