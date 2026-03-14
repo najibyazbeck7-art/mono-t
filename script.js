@@ -245,8 +245,8 @@ function sendConfig(id) {
         // Send timer loop instruction to ESP32 via MQTT
         sendTimerLoopInstructionToESP32(id, onSeconds, offSeconds, true);
         
-        // Start visual timer in web app for feedback only
-        startTimerLoop(id, onSeconds, offSeconds);
+        // Start VISUAL-ONLY timer in web app (no MQTT commands)
+        startVisualTimerOnly(id, onSeconds, offSeconds);
     } else {
         addLog("Both ON and OFF values must be > 0", "error");
     }
@@ -327,6 +327,40 @@ function sendTimerLoopInstructionToESP32(id, onSeconds, offSeconds, enabled) {
     } else {
         addLog("ERROR: MQTT not connected - cannot send loop instruction", "error");
     }
+}
+
+function startVisualTimerOnly(id, onSeconds, offSeconds) {
+    addLog(`Starting VISUAL-ONLY timer for ${id}: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
+    addLog(`ESP32 is running the actual loop - this is just for visual feedback`, "info");
+    
+    let isOnPhase = false;
+    let currentSeconds = 0;
+    let targetSeconds = offSeconds; // Start with OFF phase
+    const countdown = document.getElementById(`${id}-countdown`);
+    
+    // Visual-only countdown
+    activeCycles[id] = setInterval(() => {
+        currentSeconds++;
+        
+        // Update countdown display only (no MQTT commands)
+        if (countdown) {
+            const phase = isOnPhase ? "ON" : "OFF";
+            const remaining = targetSeconds - currentSeconds;
+            countdown.textContent = `${phase}: ${remaining}s`;
+            countdown.style.color = isOnPhase ? "#10b981" : "#ef4444";
+        }
+        
+        // Check if phase is complete
+        if (currentSeconds >= targetSeconds) {
+            // Switch phase
+            isOnPhase = !isOnPhase;
+            currentSeconds = 0;
+            targetSeconds = isOnPhase ? onSeconds : offSeconds;
+            
+            addLog(`Visual timer ${id}: Switching to ${isOnPhase ? "ON" : "OFF"} phase`, "info");
+            // NO MQTT COMMANDS SENT - ESP32 handles the actual relay control
+        }
+    }, 1000);
 }
 
 function startTimerLoop(id, onSeconds, offSeconds) {
