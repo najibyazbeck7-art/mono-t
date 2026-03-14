@@ -242,8 +242,8 @@ function sendConfig(id) {
         setBtn.textContent = "STOP";
         setBtn.style.background = "#ef4444";
         
-        // Send simple loop message to ESP32 via MQTT
-        sendLoopMessageToESP32(id, onSeconds, offSeconds);
+        // Send persistent loop instruction to ESP32 via MQTT
+        sendPersistentLoopInstruction(id, onSeconds, offSeconds);
         
         // Start visual timer for feedback only
         startVisualTimerOnly(id, onSeconds, offSeconds);
@@ -329,7 +329,7 @@ function sendTimerLoopInstructionToESP32(id, onSeconds, offSeconds, enabled) {
     }
 }
 
-function sendLoopMessageToESP32(id, onSeconds, offSeconds) {
+function sendPersistentLoopInstruction(id, onSeconds, offSeconds) {
     // Convert to relay number
     let relayNumber;
     switch(id) {
@@ -340,24 +340,35 @@ function sendLoopMessageToESP32(id, onSeconds, offSeconds) {
         default: relayNumber = parseInt(id); break;
     }
     
-    // Create simple loop message for ESP32
-    const loopMessage = `loop:${relayNumber}:${onSeconds}:${offSeconds}`;
+    // Create comprehensive loop instruction for ESP32
+    const loopInstruction = {
+        command: "START_LOOP",
+        relay: relayNumber,
+        onTime: onSeconds,
+        offTime: offSeconds,
+        persistent: true,
+        timestamp: Date.now()
+    };
     
-    // Send to ESP32 using the existing relay topic
-    const topic = `home/relay/${relayNumber}`;
-    const message = new Paho.MQTT.Message(loopMessage);
+    // Send to dedicated loop topic with retained message
+    const topic = `home/loop/${relayNumber}`;
+    const message = new Paho.MQTT.Message(JSON.stringify(loopInstruction));
     message.destinationName = topic;
-    message.retained = true; // Keep message for ESP32 to read anytime
+    message.retained = true; // CRITICAL: Message stays on MQTT server forever
     
-    addLog(`Sending loop message to ESP32: ${loopMessage}`, "info");
-    addLog(`ESP32 will parse this and start independent loop`, "info");
+    addLog(`=== SENDING PERSISTENT LOOP INSTRUCTION ===`, "info");
+    addLog(`Topic: ${topic}`, "info");
+    addLog(`Instruction: ${JSON.stringify(loopInstruction)}`, "info");
+    addLog(`Message is RETAINED - ESP32 will read anytime`, "info");
+    addLog(`ESP32 will run loop independently even if phone loses internet`, "info");
+    addLog(`=========================================`, "info");
     
     if (client.isConnected()) {
         client.send(message);
-        addLog(`Loop message sent to ESP32: ${topic}`, "info");
-        addLog(`ESP32 will now run loop: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
+        addLog(`✅ Persistent loop instruction sent successfully`, "info");
+        addLog(`🔥 ESP32 will now run: ${onSeconds}s ON / ${offSeconds}s OFF forever`, "info");
     } else {
-        addLog("ERROR: MQTT not connected - cannot send loop message", "error");
+        addLog("❌ ERROR: MQTT not connected - cannot send loop instruction", "error");
     }
 }
 
