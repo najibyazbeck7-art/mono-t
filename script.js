@@ -195,102 +195,85 @@ function publishCommand(num, val) {
 
 function sendConfig(id) {
     const minOnInput = document.getElementById(`${id}-min-on`);
-    const minOffInput = document.getElementById(`${id}-min-off`);
     const setBtn = event.target;
     
-    const secOn = parseInt(minOnInput.value) || 0;
-    const secOff = parseInt(minOffInput.value) || 0;
+    const seconds = parseInt(minOnInput.value) || 0;
     
-    addLog(`Config for ${id}: ${secOn}s ON / ${secOff}s OFF`, "info");
+    addLog(`Timer for ${id}: ${seconds} seconds`, "info");
     
-    // Stop existing cycle if running
+    // Stop existing timer if running
     if (activeCycles[id]) {
-        clearInterval(activeCycles[id]);
+        clearTimeout(activeCycles[id]);
         delete activeCycles[id];
-        addLog(`Stopped existing cycle for ${id}`, "info");
+        addLog(`Stopped existing timer for ${id}`, "info");
         setBtn.textContent = "SET";
         setBtn.style.background = "#10b981";
         
-        // Clear countdown
+        // Clear countdown and turn OFF
         const countdown = document.getElementById(`${id}-countdown`);
         if (countdown) countdown.textContent = "";
+        publishCommand(id, "OFF");
+        return;
     }
     
-    // Start new cycle if both values > 0
-    if (secOn > 0 && secOff > 0) {
-        addLog(`Starting cycle for ${id}: ${secOn}s ON → ${secOff}s OFF`, "info");
+    // Start timer if seconds > 0
+    if (seconds > 0) {
+        addLog(`Starting timer for ${id}: ${seconds} seconds`, "info");
         setBtn.textContent = "STOP";
         setBtn.style.background = "#ef4444";
         
-        // Start with ON phase
-        startCycle(id, secOn, secOff);
+        // Start timer
+        startTimer(id, seconds);
     } else {
-        addLog(`Invalid cycle values for ${id}. Both must be > 0`, "error");
+        addLog(`Invalid timer value for ${id}. Must be > 0`, "error");
     }
 }
 
-function startCycle(id, secOn, secOff) {
-    let isOnPhase = false; // Start with OFF
-    let countdownInterval;
-    let phaseTimeout;
+function startTimer(id, seconds) {
+    let timeLeft = seconds;
+    const countdown = document.getElementById(`${id}-countdown`);
     
-    function startPhase(duration, phase) {
-        let timeLeft = duration;
-        const countdown = document.getElementById(`${id}-countdown`);
-        
-        addLog(`${id} cycle: Starting ${phase} phase for ${duration} seconds`, "info");
-        addLog(`${id} cycle: About to send MQTT command: ${phase}`, "info");
-        
-        // Send MQTT command immediately
-        publishCommand(id, phase);
-        addLog(`${id} cycle: MQTT command sent, waiting for device response...`, "info");
-        
-        // Clear existing timers
-        if (countdownInterval) clearInterval(countdownInterval);
-        if (phaseTimeout) clearTimeout(phaseTimeout);
-        
-        // Update countdown immediately
-        if (countdown) {
-            countdown.textContent = `${phase}: ${timeLeft}s`;
-            countdown.style.color = phase === "ON" ? "#10b981" : "#ef4444";
-        }
-        
-        // Update countdown every second
-        countdownInterval = setInterval(() => {
-            timeLeft--;
-            if (countdown) {
-                countdown.textContent = `${phase}: ${timeLeft}s`;
-            }
-            
-            if (timeLeft <= 0) {
-                clearInterval(countdownInterval);
-                countdownInterval = null;
-            }
-        }, 1000);
-        
-        // Set timer for next phase
-        phaseTimeout = setTimeout(() => {
-            // Toggle phase and start next
-            isOnPhase = !isOnPhase;
-            const nextDuration = isOnPhase ? secOn : secOff;
-            const nextPhase = isOnPhase ? "ON" : "OFF";
-            
-            addLog(`${id} cycle: Phase complete, switching to ${nextPhase}`, "info");
-            startPhase(nextDuration, nextPhase);
-        }, duration * 1000);
+    addLog(`${id} timer: Starting ${seconds} second countdown`, "info");
+    
+    // Turn relay ON immediately
+    publishCommand(id, "ON");
+    
+    // Update countdown display
+    if (countdown) {
+        countdown.textContent = `ON: ${timeLeft}s`;
+        countdown.style.color = "#10b981";
     }
     
-    // Start first phase immediately with OFF
-    startPhase(secOff, "OFF");
-    
-    // Store the cycle info for cleanup
-    activeCycles[id] = {
-        clear: () => {
-            if (countdownInterval) clearInterval(countdownInterval);
-            if (phaseTimeout) clearTimeout(phaseTimeout);
-            addLog(`Stopped cycle for ${id}`, "info");
+    // Countdown interval
+    activeCycles[id] = setInterval(() => {
+        timeLeft--;
+        
+        if (countdown) {
+            countdown.textContent = `ON: ${timeLeft}s`;
         }
-    };
+        
+        addLog(`${id} timer: ${timeLeft} seconds remaining`, "info");
+        
+        if (timeLeft <= 0) {
+            // Timer finished - turn OFF
+            clearInterval(activeCycles[id]);
+            delete activeCycles[id];
+            
+            addLog(`${id} timer: Finished - turning OFF`, "info");
+            publishCommand(id, "OFF");
+            
+            if (countdown) {
+                countdown.textContent = "";
+            }
+            
+            // Reset button
+            const setBtn = document.querySelector(`#${id}-card .btn-set`);
+            if (setBtn) {
+                setBtn.textContent = "SET";
+                setBtn.style.background = "#10b981";
+            }
+        }
+    }, 1000);
 }
 
 function updateRelayUI(id, state) {
