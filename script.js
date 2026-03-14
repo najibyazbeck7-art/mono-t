@@ -304,6 +304,9 @@ function updateRelayUI(id, state) {
         
         stateIndicator.innerText = state;
     }
+
+    if (led) led.classList.toggle("led-on", isActive);
+    if (card) card.classList.toggle("relay-active", isActive);
 }
 
 function updateTemperatureUI(id, temp) {
