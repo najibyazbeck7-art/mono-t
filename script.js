@@ -123,28 +123,33 @@ function publishCommand(num, val) {
         return;
     }
     
-    const topic = `home/relay/${num}`;
-    const message = new Paho.MQTT.Message(val);
-    message.destinationName = topic;
-    message.retained = true; 
-    
-    console.log(`Publishing to topic: ${topic}, payload: ${val}`);
-    client.send(message);
-    
-    // Also try alternative topic formats
-    const altTopics = [
-        `home/${num}/relay`,
-        `thermo/${num}/relay`,
-        `device/${num}/relay`,
-        `${num}/relay`
+    // Try the most common ESP32 topic formats
+    const topics = [
+        `home/relay/${num}`,        // Standard format
+        `home/${num}/relay`,        // Alternative
+        `relay/${num}`,             // Simple format
+        `thermo/relay/${num}`,      // Thermo-specific
+        `device/relay/${num}`,      // Device-specific
+        `control/${num}`,           // Control topic
+        `${num}/set`,               // Direct set
+        `set/${num}`,               // Set command
+        `cmd/${num}`,               // Command topic
+        `home/${num}/set`,          // Home set
+        `home/set/${num}`           // Home set alternative
     ];
     
-    altTopics.forEach(altTopic => {
-        const altMsg = new Paho.MQTT.Message(val);
-        altMsg.destinationName = altTopic;
-        console.log(`Also trying alternative topic: ${altTopic}`);
-        client.send(altMsg);
+    console.log(`=== Publishing command for relay ${num}: ${val} ===`);
+    
+    topics.forEach((topic, index) => {
+        const message = new Paho.MQTT.Message(val);
+        message.destinationName = topic;
+        message.retained = true; 
+        
+        console.log(`[${index + 1}] Publishing to: ${topic}`);
+        client.send(message);
     });
+    
+    console.log(`=== Sent command to ${topics.length} different topics ===`);
 
     if (val === "ON") {
         const input = document.getElementById(`timer-input-${num}`);
@@ -276,6 +281,31 @@ function testRelayControls() {
     });
 }
 
+function discoverTopics() {
+    console.log("=== DISCOVERING MQTT TOPICS ===");
+    console.log("Click a relay button and watch which topic your ESP32 responds to...");
+    console.log("Your ESP32 is publishing to these status topics:");
+    console.log("- home/status/at, home/status/h1, home/status/h2, home/status/h3");
+    console.log("But it might be listening to different topics for commands!");
+    console.log("Watch the console above to see all topics being tried.");
+}
+
+function testSingleTopic(topic, relayId = 'at') {
+    console.log(`Testing single topic: ${topic} for relay ${relayId}`);
+    const message = new Paho.MQTT.Message("ON");
+    message.destinationName = topic;
+    message.retained = true;
+    client.send(message);
+    
+    setTimeout(() => {
+        const offMsg = new Paho.MQTT.Message("OFF");
+        offMsg.destinationName = topic;
+        offMsg.retained = true;
+        client.send(offMsg);
+        console.log("Sent OFF command");
+    }, 2000);
+}
+
 // Init
 window.addEventListener('DOMContentLoaded', () => {
     applyCustomNames();
@@ -297,5 +327,7 @@ window.addEventListener('DOMContentLoaded', () => {
     console.log("=== MQTT DEBUG COMMANDS ===");
     console.log("Type 'testRelays()' to test relay controls");
     console.log("Type 'mqttStatus()' to check MQTT connection");
+    console.log("Type 'discoverTopics()' to see topic discovery guide");
+    console.log("Type 'testSingleTopic(\"your/topic\")' to test specific topic");
     console.log("===========================");
 });
