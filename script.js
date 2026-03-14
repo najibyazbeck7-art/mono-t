@@ -286,16 +286,21 @@ function updateRelayUI(id, state) {
     const isActive = (state === "ON");
 
     if (btn) {
-        btn.innerText = state;
-        btn.style.backgroundColor = isActive ? "#059669" : "#0f172a";
-    }
-    if (led) {
-        led.className = isActive ? "led-indicator active" : "led-indicator";
-    }
-    if (card) {
-        card.className = isActive ? "relay-box active" : "relay-box";
-    }
-    if (stateIndicator) {
+        // Button logic: Green when OFF (ready to turn ON), Red when ON (ready to turn OFF)
+        btn.innerText = isActive ? "OFF" : "ON";
+        btn.classList.toggle("active", isActive);
+        
+        // Update button color based on state
+        if (isActive) {
+            // Relay is ON - show red OFF button
+            btn.style.background = "#ef4444";
+            btn.style.borderColor = "#dc2626";
+        } else {
+            // Relay is OFF - show green ON button
+            btn.style.background = "#10b981";
+            btn.style.borderColor = "#059669";
+        }
+        
         stateIndicator.innerText = state;
     }
 }
