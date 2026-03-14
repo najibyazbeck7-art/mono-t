@@ -123,10 +123,11 @@ function toggleRelay(id) {
         return;
     }
     
-    const currentState = btn.innerText;
-    const nextState = (currentState === "ON") ? "OFF" : "ON";
+    // Get current state from button text (shows what action will happen)
+    const actionText = btn.innerText;
+    const nextState = (actionText === "ON") ? "ON" : "OFF";
     
-    addLog(`Toggling relay ${id}: ${currentState} -> ${nextState}`, "info");
+    addLog(`Button shows "${actionText}" - will send ${nextState}`, "info");
     
     // Convert name to number for ESP32 compatibility
     let relayNumber;
