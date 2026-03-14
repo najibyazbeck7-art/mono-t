@@ -410,6 +410,22 @@ function testSingleTopic(topic, relayId = 'at') {
     }, 2000);
 }
 
+// --- DEBUG FUNCTIONS ---
+function testMQTT() {
+    addLog("=== MQTT TEST START ===", "info");
+    addLog("Testing direct MQTT command...", "info");
+    
+    // Test direct command to AT relay
+    addLog("Sending ON command to relay 1...", "info");
+    publishCommand(1, "ON");
+    
+    setTimeout(() => {
+        addLog("Sending OFF command to relay 1...", "info");
+        publishCommand(1, "OFF");
+        addLog("=== MQTT TEST END ===", "info");
+    }, 3000);
+}
+
 // --- LOG WINDOW FUNCTIONS ---
 function addLog(message, type = 'info') {
     const logContent = document.getElementById('log-content');
@@ -487,6 +503,7 @@ window.addEventListener('DOMContentLoaded', () => {
     console.log("=== MQTT DEBUG COMMANDS ===");
     console.log("Type 'testRelays()' to test relay controls");
     console.log("Type 'mqttStatus()' to check MQTT connection");
+    console.log("Type 'testMQTT()' to test direct MQTT commands");
     console.log("Type 'stopAllCycles()' to stop all cycles");
     console.log("===========================");
 });
