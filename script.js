@@ -219,7 +219,10 @@ function sendConfig(id) {
         const countdown = document.getElementById(`${id}-countdown`);
         if (countdown) countdown.textContent = "";
         
-        // Convert to relay number
+        // Send stop instruction to ESP32
+        sendTimerInstructionToESP32(id, 0, 0, false);
+        
+        // Convert to relay number and send OFF command
         let relayNumber;
         switch(id) {
             case 'at': relayNumber = 1; break;
@@ -239,13 +242,50 @@ function sendConfig(id) {
         setBtn.textContent = "STOP";
         setBtn.style.background = "#ef4444";
         
-        // Add debugging
-        addLog(`About to call startTimerLoop for ${id}`, "info");
+        // Send timer instruction to ESP32 via MQTT
+        sendTimerInstructionToESP32(id, onSeconds, offSeconds, true);
         
-        // Start timer
+        // Also start visual timer in web app for feedback
         startTimerLoop(id, onSeconds, offSeconds);
     } else {
         addLog("Both ON and OFF values must be > 0", "error");
+    }
+}
+
+function sendTimerInstructionToESP32(id, onSeconds, offSeconds, isActive) {
+    // Convert to relay number
+    let relayNumber;
+    switch(id) {
+        case 'at': relayNumber = 1; break;
+        case 'h1': relayNumber = 2; break;
+        case 'h2': relayNumber = 3; break;
+        case 'h3': relayNumber = 4; break;
+        default: relayNumber = parseInt(id); break;
+    }
+    
+    // Create simple timer instruction that ESP32 can interpret
+    const instruction = {
+        relay: relayNumber,
+        onTime: onSeconds,
+        offTime: offSeconds,
+        enabled: isActive,
+        mode: "timer"
+    };
+    
+    // Send to ESP32 using a topic it can understand
+    const topic = `home/relay/${relayNumber}/timer`;
+    const message = new Paho.MQTT.Message(JSON.stringify(instruction));
+    message.destinationName = topic;
+    message.retained = true; // Keep message for ESP32 to read anytime
+    
+    addLog(`Sending timer instruction to ESP32: relay=${relayNumber}, on=${onSeconds}s, off=${offSeconds}s, enabled=${isActive}`, "info");
+    
+    if (client.isConnected()) {
+        client.send(message);
+        addLog(`Timer instruction sent to ESP32: ${topic}`, "info");
+        addLog(`ESP32 will now run timer independently even if web app closes`, "info");
+    } else {
+        addLog("ERROR: MQTT not connected - cannot send timer instruction", "error");
     }
 }
 
@@ -513,6 +553,39 @@ function applySavedTimerSettings() {
     const relays = ['at', 'h1', 'h2', 'h3'];
     relays.forEach(id => {
         loadTimerSettings(id);
+    });
+    
+    // Add recovery check after 5 seconds
+    setTimeout(() => {
+        checkAndRecoverTimers();
+    }, 5000);
+}
+
+function checkAndRecoverTimers() {
+    const relays = ['at', 'h1', 'h2', 'h3'];
+    relays.forEach(id => {
+        const saved = localStorage.getItem(`timer-${id}`);
+        if (saved) {
+            try {
+                const settings = JSON.parse(saved);
+                // If timer was active but not running, restart it
+                if (settings.isActive && settings.onSeconds > 0 && settings.offSeconds > 0 && !activeCycles[id]) {
+                    addLog(`Recovering lost timer for ${id}`, "info");
+                    
+                    // Update button state
+                    const setBtn = document.querySelector(`#${id}-card .btn-set`);
+                    if (setBtn) {
+                        setBtn.textContent = "STOP";
+                        setBtn.style.background = "#ef4444";
+                    }
+                    
+                    // Restart timer
+                    startTimerLoop(id, settings.onSeconds, settings.offSeconds);
+                }
+            } catch (error) {
+                addLog(`Error checking timer for ${id}: ${error}`, "error");
+            }
+        }
     });
 }
 
