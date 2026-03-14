@@ -146,6 +146,22 @@ body {
     gap: 5px;
 }
 
+.cycle-countdown {
+    text-align: center;
+    margin-top: 8px;
+    padding: 4px 8px;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #10b981;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .input-item {
     display: flex;
     flex-direction: column;

@@ -190,10 +190,10 @@ function sendConfig(id) {
     const minOffInput = document.getElementById(`${id}-min-off`);
     const setBtn = event.target;
     
-    const minOn = parseInt(minOnInput.value) || 0;
-    const minOff = parseInt(minOffInput.value) || 0;
+    const secOn = parseInt(minOnInput.value) || 0;
+    const secOff = parseInt(minOffInput.value) || 0;
     
-    addLog(`Config for ${id}: ${minOn}min ON / ${minOff}min OFF`, "info");
+    addLog(`Config for ${id}: ${secOn}s ON / ${secOff}s OFF`, "info");
     
     // Stop existing cycle if running
     if (activeCycles[id]) {
@@ -202,31 +202,65 @@ function sendConfig(id) {
         addLog(`Stopped existing cycle for ${id}`, "info");
         setBtn.textContent = "SET";
         setBtn.style.background = "#10b981";
+        
+        // Clear countdown
+        const countdown = document.getElementById(`${id}-countdown`);
+        if (countdown) countdown.textContent = "";
     }
     
     // Start new cycle if both values > 0
-    if (minOn > 0 && minOff > 0) {
-        addLog(`Starting cycle for ${id}: ${minOn}min ON → ${minOff}min OFF`, "info");
+    if (secOn > 0 && secOff > 0) {
+        addLog(`Starting cycle for ${id}: ${secOn}s ON → ${secOff}s OFF`, "info");
         setBtn.textContent = "STOP";
         setBtn.style.background = "#ef4444";
         
         // Start with ON phase
-        startCycle(id, minOn, minOff);
+        startCycle(id, secOn, secOff);
     } else {
         addLog(`Invalid cycle values for ${id}. Both must be > 0`, "error");
     }
 }
 
-function startCycle(id, minOn, minOff) {
+function startCycle(id, secOn, secOff) {
     let isOnPhase = true;
+    let countdownInterval;
+    
+    function startCountdown(duration, phase) {
+        let timeLeft = duration;
+        const countdown = document.getElementById(`${id}-countdown`);
+        
+        // Clear existing countdown
+        if (countdownInterval) clearInterval(countdownInterval);
+        
+        // Update countdown immediately
+        if (countdown) {
+            countdown.textContent = `${phase}: ${timeLeft}s`;
+            countdown.style.color = phase === "ON" ? "#10b981" : "#ef4444";
+        }
+        
+        // Update countdown every second
+        countdownInterval = setInterval(() => {
+            timeLeft--;
+            if (countdown) {
+                countdown.textContent = `${phase}: ${timeLeft}s`;
+            }
+            
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        }, 1000);
+    }
     
     function runCycle() {
-        const duration = isOnPhase ? minOn * 60 * 1000 : minOff * 60 * 1000;
+        const duration = isOnPhase ? secOn : secOff;
         const phase = isOnPhase ? "ON" : "OFF";
-        const minutes = isOnPhase ? minOn : minOff;
         
-        addLog(`${id} cycle: ${phase} for ${minutes} minutes`, "info");
+        addLog(`${id} cycle: ${phase} for ${duration} seconds`, "info");
         publishCommand(id, phase);
+        
+        // Start countdown display
+        startCountdown(duration, phase);
         
         // Toggle for next cycle
         isOnPhase = !isOnPhase;
@@ -238,7 +272,7 @@ function startCycle(id, minOn, minOff) {
     // Set up recurring cycle
     activeCycles[id] = setInterval(() => {
         runCycle();
-    }, (minOn + minOff) * 60 * 1000); // Total cycle time
+    }, (secOn + secOff) * 1000); // Total cycle time in seconds
 }
 
 function updateRelayUI(id, state) {
