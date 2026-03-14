@@ -36,18 +36,18 @@ function connectMQTT() {
 }
 
 client.onMessageArrived = (message) => {
-    console.log(`=== MQTT MESSAGE RECEIVED ===`);
-    console.log(`Topic: ${message.destinationName}`);
-    console.log(`Payload: ${message.payloadString}`);
-    console.log(`===========================`);
-    
     const topic = message.destinationName;
     const payload = message.payloadString;
+
+    addLog(`=== MQTT MESSAGE RECEIVED ===`, "received");
+    addLog(`Topic: ${topic}`, "received");
+    addLog(`Payload: ${payload}`, "received");
+    addLog(`===========================`, "received");
 
     // A. Handle Hardware Availability
     if (topic.includes("/availability")) {
         updateStatus(payload, payload === "ONLINE" ? "online" : "offline");
-        console.log(`📍 Device status: ${payload}`);
+        addLog(`📍 Device status: ${payload}`, "info");
         
         if (payload === "OFFLINE") {
             clearTimeout(heartbeatTimeout);
@@ -58,7 +58,7 @@ client.onMessageArrived = (message) => {
     // B. Handle Relay State
     if (topic.includes("/status")) {
         const id = topic.split('/')[2];
-        console.log(`🔄 Relay status update: ${id} = ${payload}`);
+        addLog(`🔄 Relay status update: ${id} = ${payload}`, "received");
         updateRelayUI(id, payload);
         
         const currentBar = document.getElementById('status-pill').innerText;
@@ -69,7 +69,7 @@ client.onMessageArrived = (message) => {
     if (topic.includes("/temp")) {
         const id = topic.split('/')[2];
         updateTemperatureUI(id, payload);
-        console.log(`🌡️ Temperature ${id}: ${payload}`);
+        addLog(`🌡️ Temperature ${id}: ${payload}`, "received");
     }
 
     // D. Handle Name Sync from Cloud
@@ -78,7 +78,7 @@ client.onMessageArrived = (message) => {
         if (localStorage.getItem(`relay-name-${id}`) !== payload) {
             localStorage.setItem(`relay-name-${id}`, payload);
             applyCustomNames();
-            console.log(`📝 Updated name for Relay ${id}: ${payload}`);
+            addLog(`📝 Updated name for Relay ${id}: ${payload}`, "received");
         }
     }
 
@@ -87,7 +87,7 @@ client.onMessageArrived = (message) => {
         clearTimeout(heartbeatTimeout);
         heartbeatTimeout = setTimeout(() => {
             updateStatus("OFFLINE (TIMEOUT)", "offline");
-            console.log("❌ Signal Lost: Heartbeat Timeout");
+            addLog("❌ Signal Lost: Heartbeat Timeout", "error");
         }, 65000);
     }
 };
@@ -95,41 +95,41 @@ client.onMessageArrived = (message) => {
 // --- 2. COMMANDS & UI ---
 
 function toggleRelay(id) {
-    console.log(`Toggle relay ${id} called`);
+    addLog(`Toggle relay ${id} called`, "info");
     
     // Check if MQTT is connected
     if (!client.isConnected()) {
-        console.log("MQTT not connected - cannot toggle relay");
+        addLog("MQTT not connected - cannot toggle relay", "error");
         updateStatus("OFFLINE", "offline");
         return;
     }
     
     const btn = document.getElementById(`${id}-btn`);
     if (!btn) {
-        console.log(`Button not found for relay ${id}`);
+        addLog(`Button not found for relay ${id}`, "error");
         return;
     }
     
     const currentState = btn.innerText;
     const nextState = (currentState === "ON") ? "OFF" : "ON";
     
-    console.log(`Toggling relay ${id}: ${currentState} -> ${nextState}`);
+    addLog(`Toggling relay ${id}: ${currentState} -> ${nextState}`, "info");
     
     // Send MQTT command using working format
     publishCommand(id, nextState);
     
     // Don't update UI immediately - let ESP32 respond with status
-    console.log(`Waiting for ESP32 to confirm state change...`);
+    addLog(`Waiting for ESP32 to confirm state change...`, "info");
 }
 
 function publishCommand(num, val) {
-    console.log(`=== PUBLISH COMMAND START ===`);
-    console.log(`Relay: ${num}, Value: ${val}`);
-    console.log(`MQTT Connected: ${client.isConnected()}`);
-    console.log(`Host: ${HOST}, Port: ${PORT}`);
+    addLog(`=== PUBLISH COMMAND START ===`, "info");
+    addLog(`Relay: ${num}, Value: ${val}`, "info");
+    addLog(`MQTT Connected: ${client.isConnected()}`, "info");
+    addLog(`Host: ${HOST}, Port: ${PORT}`, "info");
     
     if (!client.isConnected()) {
-        console.log("❌ ERROR: MQTT not connected - cannot send command");
+        addLog("❌ ERROR: MQTT not connected - cannot send command", "error");
         return;
     }
     
@@ -138,18 +138,18 @@ function publishCommand(num, val) {
     message.destinationName = topic;
     message.retained = true; 
     
-    console.log(`✅ Publishing to topic: ${topic}`);
-    console.log(`✅ Message payload: ${val}`);
-    console.log(`✅ Message retained: true`);
+    addLog(`✅ Publishing to topic: ${topic}`, "sent");
+    addLog(`✅ Message payload: ${val}`, "sent");
+    addLog(`✅ Message retained: true`, "sent");
     
     try {
         client.send(message);
-        console.log(`✅ Message sent successfully`);
+        addLog(`✅ Message sent successfully`, "sent");
     } catch (error) {
-        console.log(`❌ ERROR sending message: ${error}`);
+        addLog(`❌ ERROR sending message: ${error}`, "error");
     }
     
-    console.log(`=== PUBLISH COMMAND END ===`);
+    addLog(`=== PUBLISH COMMAND END ===`, "info");
 
     if (val === "ON") {
         const input = document.getElementById(`timer-input-${num}`);
@@ -306,6 +306,41 @@ function testSingleTopic(topic, relayId = 'at') {
     }, 2000);
 }
 
+// --- LOG WINDOW FUNCTIONS ---
+function addLog(message, type = 'info') {
+    const logContent = document.getElementById('log-content');
+    if (!logContent) return;
+    
+    const timestamp = new Date().toLocaleTimeString([], { hour12: false });
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry ${type}`;
+    logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
+    
+    logContent.appendChild(logEntry);
+    logContent.scrollTop = logContent.scrollHeight;
+    
+    // Keep only last 100 entries
+    const entries = logContent.children;
+    if (entries.length > 100) {
+        logContent.removeChild(entries[0]);
+    }
+}
+
+function toggleLog() {
+    const logWindow = document.getElementById('log-window');
+    if (logWindow) {
+        logWindow.style.display = logWindow.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function clearLog() {
+    const logContent = document.getElementById('log-content');
+    if (logContent) {
+        logContent.innerHTML = '';
+        addLog('Log cleared', 'info');
+    }
+}
+
 // Init
 window.addEventListener('DOMContentLoaded', () => {
     applyCustomNames();
@@ -323,6 +358,10 @@ window.addEventListener('DOMContentLoaded', () => {
             connected: client.isConnected()
         });
     };
+    
+    // Initialize log
+    addLog('Thermo Beta Dashboard initialized', 'info');
+    addLog('Connecting to MQTT broker...', 'info');
     
     console.log("=== MQTT DEBUG COMMANDS ===");
     console.log("Type 'testRelays()' to test relay controls");
