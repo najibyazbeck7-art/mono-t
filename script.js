@@ -242,10 +242,10 @@ function sendConfig(id) {
         setBtn.textContent = "STOP";
         setBtn.style.background = "#ef4444";
         
-        // Send timer loop instruction to ESP32 via MQTT
-        sendTimerLoopInstructionToESP32(id, onSeconds, offSeconds, true);
+        // Send simple loop message to ESP32 via MQTT
+        sendLoopMessageToESP32(id, onSeconds, offSeconds);
         
-        // Start VISUAL-ONLY timer in web app (no MQTT commands)
+        // Start visual timer for feedback only
         startVisualTimerOnly(id, onSeconds, offSeconds);
     } else {
         addLog("Both ON and OFF values must be > 0", "error");
@@ -326,6 +326,38 @@ function sendTimerLoopInstructionToESP32(id, onSeconds, offSeconds, enabled) {
         addLog(`ESP32 will now run timer loop independently forever`, "info");
     } else {
         addLog("ERROR: MQTT not connected - cannot send loop instruction", "error");
+    }
+}
+
+function sendLoopMessageToESP32(id, onSeconds, offSeconds) {
+    // Convert to relay number
+    let relayNumber;
+    switch(id) {
+        case 'at': relayNumber = 1; break;
+        case 'h1': relayNumber = 2; break;
+        case 'h2': relayNumber = 3; break;
+        case 'h3': relayNumber = 4; break;
+        default: relayNumber = parseInt(id); break;
+    }
+    
+    // Create simple loop message for ESP32
+    const loopMessage = `loop:${relayNumber}:${onSeconds}:${offSeconds}`;
+    
+    // Send to ESP32 using the existing relay topic
+    const topic = `home/relay/${relayNumber}`;
+    const message = new Paho.MQTT.Message(loopMessage);
+    message.destinationName = topic;
+    message.retained = true; // Keep message for ESP32 to read anytime
+    
+    addLog(`Sending loop message to ESP32: ${loopMessage}`, "info");
+    addLog(`ESP32 will parse this and start independent loop`, "info");
+    
+    if (client.isConnected()) {
+        client.send(message);
+        addLog(`Loop message sent to ESP32: ${topic}`, "info");
+        addLog(`ESP32 will now run loop: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
+    } else {
+        addLog("ERROR: MQTT not connected - cannot send loop message", "error");
     }
 }
 
