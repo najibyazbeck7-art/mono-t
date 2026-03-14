@@ -526,9 +526,10 @@ function loadTimerSettings(id) {
             if (onInput) onInput.value = settings.onSeconds;
             if (offInput) offInput.value = settings.offSeconds;
             
-            // Always restore button state
+            // Always restore button state first
             const setBtn = document.querySelector(`#${id}-card .btn-set`);
             if (setBtn) {
+                addLog(`Restoring ${id} button state: ${settings.buttonState || "SET"}`, "info");
                 setBtn.textContent = settings.buttonState || "SET";
                 setBtn.style.background = settings.buttonState === "STOP" ? "#ef4444" : "#10b981";
             }
@@ -568,16 +569,18 @@ function checkAndRecoverTimers() {
         if (saved) {
             try {
                 const settings = JSON.parse(saved);
+                addLog(`Checking ${id}: active=${settings.isActive}, running=${!!activeCycles[id]}`, "info");
+                
+                // Always restore button state first
+                const setBtn = document.querySelector(`#${id}-card .btn-set`);
+                if (setBtn) {
+                    setBtn.textContent = settings.buttonState || "SET";
+                    setBtn.style.background = settings.buttonState === "STOP" ? "#ef4444" : "#10b981";
+                }
+                
                 // If timer was active but not running, restart it
                 if (settings.isActive && settings.onSeconds > 0 && settings.offSeconds > 0 && !activeCycles[id]) {
                     addLog(`Recovering lost timer for ${id}`, "info");
-                    
-                    // Update button state
-                    const setBtn = document.querySelector(`#${id}-card .btn-set`);
-                    if (setBtn) {
-                        setBtn.textContent = "STOP";
-                        setBtn.style.background = "#ef4444";
-                    }
                     
                     // Restart timer
                     startTimerLoop(id, settings.onSeconds, settings.offSeconds);
