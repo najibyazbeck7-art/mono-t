@@ -36,13 +36,18 @@ function connectMQTT() {
 }
 
 client.onMessageArrived = (message) => {
+    console.log(`=== MQTT MESSAGE RECEIVED ===`);
+    console.log(`Topic: ${message.destinationName}`);
+    console.log(`Payload: ${message.payloadString}`);
+    console.log(`===========================`);
+    
     const topic = message.destinationName;
     const payload = message.payloadString;
 
     // A. Handle Hardware Availability
     if (topic.includes("/availability")) {
         updateStatus(payload, payload === "ONLINE" ? "online" : "offline");
-        console.log(`Device status: ${payload}`);
+        console.log(`📍 Device status: ${payload}`);
         
         if (payload === "OFFLINE") {
             clearTimeout(heartbeatTimeout);
@@ -53,8 +58,8 @@ client.onMessageArrived = (message) => {
     // B. Handle Relay State
     if (topic.includes("/status")) {
         const id = topic.split('/')[2];
+        console.log(`🔄 Relay status update: ${id} = ${payload}`);
         updateRelayUI(id, payload);
-        console.log(`Relay ${id} turned ${payload}`);
         
         const currentBar = document.getElementById('status-pill').innerText;
         if (!currentBar.includes("OFFLINE")) updateStatus("ONLINE", "online");
@@ -64,7 +69,7 @@ client.onMessageArrived = (message) => {
     if (topic.includes("/temp")) {
         const id = topic.split('/')[2];
         updateTemperatureUI(id, payload);
-        console.log(`Temperature ${id}: ${payload}`);
+        console.log(`🌡️ Temperature ${id}: ${payload}`);
     }
 
     // D. Handle Name Sync from Cloud
@@ -73,7 +78,7 @@ client.onMessageArrived = (message) => {
         if (localStorage.getItem(`relay-name-${id}`) !== payload) {
             localStorage.setItem(`relay-name-${id}`, payload);
             applyCustomNames();
-            console.log(`Updated name for Relay ${id}: ${payload}`);
+            console.log(`📝 Updated name for Relay ${id}: ${payload}`);
         }
     }
 
@@ -82,7 +87,7 @@ client.onMessageArrived = (message) => {
         clearTimeout(heartbeatTimeout);
         heartbeatTimeout = setTimeout(() => {
             updateStatus("OFFLINE (TIMEOUT)", "offline");
-            console.log("Signal Lost: Heartbeat Timeout");
+            console.log("❌ Signal Lost: Heartbeat Timeout");
         }, 65000);
     }
 };
@@ -118,13 +123,33 @@ function toggleRelay(id) {
 }
 
 function publishCommand(num, val) {
-    if (!client.isConnected()) return;
+    console.log(`=== PUBLISH COMMAND START ===`);
+    console.log(`Relay: ${num}, Value: ${val}`);
+    console.log(`MQTT Connected: ${client.isConnected()}`);
+    console.log(`Host: ${HOST}, Port: ${PORT}`);
+    
+    if (!client.isConnected()) {
+        console.log("❌ ERROR: MQTT not connected - cannot send command");
+        return;
+    }
+    
+    const topic = `home/relay/${num}`;
     const message = new Paho.MQTT.Message(val);
-    message.destinationName = `home/relay/${num}`;
+    message.destinationName = topic;
     message.retained = true; 
-    client.send(message);
-
-    console.log(`Publishing to: home/relay/${num}, payload: ${val}`);
+    
+    console.log(`✅ Publishing to topic: ${topic}`);
+    console.log(`✅ Message payload: ${val}`);
+    console.log(`✅ Message retained: true`);
+    
+    try {
+        client.send(message);
+        console.log(`✅ Message sent successfully`);
+    } catch (error) {
+        console.log(`❌ ERROR sending message: ${error}`);
+    }
+    
+    console.log(`=== PUBLISH COMMAND END ===`);
 
     if (val === "ON") {
         const input = document.getElementById(`timer-input-${num}`);
