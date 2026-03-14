@@ -110,11 +110,11 @@ function toggleRelay(id) {
     
     console.log(`Toggling relay ${id}: ${currentState} -> ${nextState}`);
     
-    // Send MQTT command
+    // Send MQTT command using working format
     publishCommand(id, nextState);
     
-    // Update UI immediately for better UX
-    updateRelayUI(id, nextState);
+    // Don't update UI immediately - let ESP32 respond with status
+    console.log(`Waiting for ESP32 to confirm state change...`);
 }
 
 function publishCommand(num, val) {

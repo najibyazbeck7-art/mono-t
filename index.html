@@ -24,21 +24,30 @@
         <div class="relay-container">
         
         <!-- AT Sensor Card -->
-        <div class="relay-box" data-relay="at">
+        <div class="relay-box" id="at-card">
             <div class="relay-label">
-                <span class="device-name">AT</span>
-                <span class="state-badge" id="badge-at">OFF</span>
+                <span class="sensor-label">AT</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="temp-value"><span id="at-val">--</span><small>C</small></span>
+                    <span class="state-indicator" id="at-state">OFF</span>
+                </div>
             </div>
             
-            <div class="btn-group">
-                <button class="btn btn-on" id="btn-on-at" onclick="publishCommand('at', 'ON')">ON</button>
-                <button class="btn btn-off btn-inactive" id="btn-off-at" onclick="publishCommand('at', 'OFF')">OFF</button>
+            <div class="toggle-row">
+                <button class="toggle-pill" id="at-btn" onclick="toggleRelay('at')">OFF</button>
+                <div class="led-indicator" id="at-led"></div>
             </div>
             
-            <div class="timer-row">
-                <label>Timer</label>
-                <input type="number" id="timer-input-at" placeholder="sec" min="0" max="3600">
-                <span class="countdown" id="countdown-at"></span>
+            <div class="card-inputs">
+                <div class="input-item">
+                    <label>min on</label>
+                    <input type="text" id="at-min-on" placeholder="--">
+                </div>
+                <button class="btn-set" onclick="sendConfig('at')">SET</button>
+                <div class="input-item">
+                    <label>min off</label>
+                    <input type="text" id="at-min-off" placeholder="--">
+                </div>
             </div>
         </div>
 
