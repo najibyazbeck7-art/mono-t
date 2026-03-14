@@ -236,6 +236,9 @@ function sendConfig(id) {
         setBtn.textContent = "STOP";
         setBtn.style.background = "#ef4444";
         
+        // Add debugging
+        addLog(`About to call startTimerLoop for ${id}`, "info");
+        
         // Start timer
         startTimerLoop(id, onSeconds, offSeconds);
     } else {
@@ -244,10 +247,15 @@ function sendConfig(id) {
 }
 
 function startTimerLoop(id, onSeconds, offSeconds) {
+    addLog(`=== startTimerLoop called for ${id} ===`, "info");
+    addLog(`Parameters: onSeconds=${onSeconds}, offSeconds=${offSeconds}`, "info");
+    
     let isOnPhase = false;
     let currentSeconds = 0;
     let targetSeconds = offSeconds; // Start with OFF phase
     const countdown = document.getElementById(`${id}-countdown`);
+    
+    addLog(`Countdown element found: ${!!countdown}`, "info");
     
     // Convert to relay number
     let relayNumber;
