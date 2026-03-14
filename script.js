@@ -152,26 +152,34 @@ function publishCommand(num, val) {
     addLog(`Relay: ${num}, Value: ${val}`, "info");
     addLog(`MQTT Connected: ${client.isConnected()}`, "info");
     addLog(`Host: ${HOST}, Port: ${PORT}`, "info");
+    addLog(`Client object exists: ${!!client}`, "info");
     
     if (!client.isConnected()) {
         addLog("❌ ERROR: MQTT not connected - cannot send command", "error");
+        addLog("Connection status: " + client.isConnected(), "error");
         return;
     }
     
     const topic = `home/relay/${num}`;
+    addLog(`✅ Creating message for topic: ${topic}`, "sent");
+    addLog(`✅ Message payload: ${val}`, "sent");
+    
     const message = new Paho.MQTT.Message(val);
     message.destinationName = topic;
     message.retained = true; 
     
-    addLog(`✅ Publishing to topic: ${topic}`, "sent");
-    addLog(`✅ Message payload: ${val}`, "sent");
-    addLog(`✅ Message retained: true`, "sent");
+    addLog(`✅ Message object created: ${!!message}`, "sent");
+    addLog(`✅ Message destination: ${message.destinationName}`, "sent");
+    addLog(`✅ Message retained: ${message.retained}`, "sent");
     
     try {
+        addLog(`🚀 About to call client.send()...`, "sent");
         client.send(message);
         addLog(`✅ Message sent successfully`, "sent");
+        addLog(`📡 Check ESP32 for response on: home/relay/${num}/status`, "info");
     } catch (error) {
         addLog(`❌ ERROR sending message: ${error}`, "error");
+        addLog(`❌ Error details: ${error.stack}`, "error");
     }
     
     addLog(`=== PUBLISH COMMAND END ===`, "info");
@@ -231,9 +239,11 @@ function startCycle(id, secOn, secOff) {
         const countdown = document.getElementById(`${id}-countdown`);
         
         addLog(`${id} cycle: Starting ${phase} phase for ${duration} seconds`, "info");
+        addLog(`${id} cycle: About to send MQTT command: ${phase}`, "info");
         
         // Send MQTT command immediately
         publishCommand(id, phase);
+        addLog(`${id} cycle: MQTT command sent, waiting for device response...`, "info");
         
         // Clear existing timers
         if (countdownInterval) clearInterval(countdownInterval);
