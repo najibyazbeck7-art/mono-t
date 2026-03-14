@@ -57,9 +57,21 @@ client.onMessageArrived = (message) => {
 
     // B. Handle Relay State
     if (topic.includes("/status")) {
-        const id = topic.split('/')[2];
-        addLog(`🔄 Relay status update: ${id} = ${payload}`, "received");
-        updateRelayUI(id, payload);
+        const relayNum = topic.split('/')[2];
+        addLog(`🔄 Relay status update: ${relayNum} = ${payload}`, "received");
+        
+        // Convert ESP32 number back to name for UI
+        let relayId;
+        switch(relayNum) {
+            case '1': relayId = 'at'; break;
+            case '2': relayId = 'h1'; break;
+            case '3': relayId = 'h2'; break;
+            case '4': relayId = 'h3'; break;
+            default: relayId = relayNum; break;
+        }
+        
+        addLog(`Converted relay ${relayNum} to UI ID: ${relayId}`, "received");
+        updateRelayUI(relayId, payload);
         
         const currentBar = document.getElementById('status-pill').innerText;
         if (!currentBar.includes("OFFLINE")) updateStatus("ONLINE", "online");
@@ -115,8 +127,20 @@ function toggleRelay(id) {
     
     addLog(`Toggling relay ${id}: ${currentState} -> ${nextState}`, "info");
     
-    // Send MQTT command using working format
-    publishCommand(id, nextState);
+    // Convert name to number for ESP32 compatibility
+    let relayNumber;
+    switch(id) {
+        case 'at': relayNumber = 1; break;
+        case 'h1': relayNumber = 2; break;
+        case 'h2': relayNumber = 3; break;
+        case 'h3': relayNumber = 4; break;
+        default: relayNumber = parseInt(id); break;
+    }
+    
+    addLog(`Converted ${id} to relay number ${relayNumber}`, "info");
+    
+    // Send MQTT command using ESP32 format
+    publishCommand(relayNumber, nextState);
     
     // Don't update UI immediately - let ESP32 respond with status
     addLog(`Waiting for ESP32 to confirm state change...`, "info");
