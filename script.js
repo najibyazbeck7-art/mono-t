@@ -340,35 +340,28 @@ function sendPersistentLoopInstruction(id, onSeconds, offSeconds) {
         default: relayNumber = parseInt(id); break;
     }
     
-    // Create comprehensive loop instruction for ESP32
-    const loopInstruction = {
-        command: "START_LOOP",
-        relay: relayNumber,
-        onTime: onSeconds,
-        offTime: offSeconds,
-        persistent: true,
-        timestamp: Date.now()
-    };
+    // Create simple loop command that ESP32 might understand
+    const loopCommand = `LOOP_${relayNumber}_${onSeconds}_${offSeconds}`;
     
-    // Send to dedicated loop topic with retained message
-    const topic = `home/loop/${relayNumber}`;
-    const message = new Paho.MQTT.Message(JSON.stringify(loopInstruction));
+    // Send to the existing relay topic that ESP32 already monitors
+    const topic = `home/relay/${relayNumber}`;
+    const message = new Paho.MQTT.Message(loopCommand);
     message.destinationName = topic;
-    message.retained = true; // CRITICAL: Message stays on MQTT server forever
+    message.retained = true; // Keep message for ESP32
     
-    addLog(`=== SENDING PERSISTENT LOOP INSTRUCTION ===`, "info");
+    addLog(`=== SENDING LOOP COMMAND TO ESP32 ===`, "info");
     addLog(`Topic: ${topic}`, "info");
-    addLog(`Instruction: ${JSON.stringify(loopInstruction)}`, "info");
+    addLog(`Command: ${loopCommand}`, "info");
+    addLog(`Using existing relay topic ESP32 already monitors`, "info");
     addLog(`Message is RETAINED - ESP32 will read anytime`, "info");
-    addLog(`ESP32 will run loop independently even if phone loses internet`, "info");
-    addLog(`=========================================`, "info");
+    addLog(`=====================================`, "info");
     
     if (client.isConnected()) {
         client.send(message);
-        addLog(`✅ Persistent loop instruction sent successfully`, "info");
-        addLog(`🔥 ESP32 will now run: ${onSeconds}s ON / ${offSeconds}s OFF forever`, "info");
+        addLog(`✅ Loop command sent to ESP32`, "info");
+        addLog(`🔥 ESP32 should start: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
     } else {
-        addLog("❌ ERROR: MQTT not connected - cannot send loop instruction", "error");
+        addLog("❌ ERROR: MQTT not connected - cannot send loop command", "error");
     }
 }
 
