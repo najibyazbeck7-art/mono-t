@@ -453,11 +453,12 @@ function saveTimerSettings(id, onSeconds, offSeconds) {
         onSeconds: onSeconds,
         offSeconds: offSeconds,
         timestamp: Date.now(),
-        isActive: !!activeCycles[id]
+        isActive: !!activeCycles[id],
+        buttonState: activeCycles[id] ? "STOP" : "SET"
     };
     
     localStorage.setItem(`timer-${id}`, JSON.stringify(settings));
-    addLog(`Saved timer settings for ${id}: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
+    addLog(`Saved timer settings for ${id}: ${onSeconds}s ON / ${offSeconds}s OFF (active: ${settings.isActive})`, "info");
     
     // Also save to MQTT server for persistence
     const mqttTopic = `home/timer/${id}`;
@@ -485,16 +486,16 @@ function loadTimerSettings(id) {
             if (onInput) onInput.value = settings.onSeconds;
             if (offInput) offInput.value = settings.offSeconds;
             
+            // Always restore button state
+            const setBtn = document.querySelector(`#${id}-card .btn-set`);
+            if (setBtn) {
+                setBtn.textContent = settings.buttonState || "SET";
+                setBtn.style.background = settings.buttonState === "STOP" ? "#ef4444" : "#10b981";
+            }
+            
             // Auto-start timer if it was active
             if (settings.isActive && settings.onSeconds > 0 && settings.offSeconds > 0) {
                 addLog(`Auto-starting timer for ${id} (was active)`, "info");
-                
-                // Update button state
-                const setBtn = document.querySelector(`#${id}-card .btn-set`);
-                if (setBtn) {
-                    setBtn.textContent = "STOP";
-                    setBtn.style.background = "#ef4444";
-                }
                 
                 // Start timer
                 startTimerLoop(id, settings.onSeconds, settings.offSeconds);
