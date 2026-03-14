@@ -222,7 +222,7 @@ function sendConfig(id) {
 }
 
 function startCycle(id, secOn, secOff) {
-    let isOnPhase = true;
+    let isOnPhase = false; // Start with OFF
     let countdownInterval;
     let phaseTimeout;
     
@@ -270,8 +270,8 @@ function startCycle(id, secOn, secOff) {
         }, duration * 1000);
     }
     
-    // Start first phase immediately
-    startPhase(secOn, "ON");
+    // Start first phase immediately with OFF
+    startPhase(secOff, "OFF");
     
     // Store the cycle info for cleanup
     activeCycles[id] = {
