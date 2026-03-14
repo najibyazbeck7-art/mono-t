@@ -224,13 +224,20 @@ function sendConfig(id) {
 function startCycle(id, secOn, secOff) {
     let isOnPhase = true;
     let countdownInterval;
+    let phaseTimeout;
     
-    function startCountdown(duration, phase) {
+    function startPhase(duration, phase) {
         let timeLeft = duration;
         const countdown = document.getElementById(`${id}-countdown`);
         
-        // Clear existing countdown
+        addLog(`${id} cycle: Starting ${phase} phase for ${duration} seconds`, "info");
+        
+        // Send MQTT command immediately
+        publishCommand(id, phase);
+        
+        // Clear existing timers
         if (countdownInterval) clearInterval(countdownInterval);
+        if (phaseTimeout) clearTimeout(phaseTimeout);
         
         // Update countdown immediately
         if (countdown) {
@@ -250,29 +257,30 @@ function startCycle(id, secOn, secOff) {
                 countdownInterval = null;
             }
         }, 1000);
-    }
-    
-    function runCycle() {
-        const duration = isOnPhase ? secOn : secOff;
-        const phase = isOnPhase ? "ON" : "OFF";
         
-        addLog(`${id} cycle: ${phase} for ${duration} seconds`, "info");
-        publishCommand(id, phase);
-        
-        // Start countdown display
-        startCountdown(duration, phase);
-        
-        // Toggle for next cycle
-        isOnPhase = !isOnPhase;
+        // Set timer for next phase
+        phaseTimeout = setTimeout(() => {
+            // Toggle phase and start next
+            isOnPhase = !isOnPhase;
+            const nextDuration = isOnPhase ? secOn : secOff;
+            const nextPhase = isOnPhase ? "ON" : "OFF";
+            
+            addLog(`${id} cycle: Phase complete, switching to ${nextPhase}`, "info");
+            startPhase(nextDuration, nextPhase);
+        }, duration * 1000);
     }
     
     // Start first phase immediately
-    runCycle();
+    startPhase(secOn, "ON");
     
-    // Set up recurring cycle
-    activeCycles[id] = setInterval(() => {
-        runCycle();
-    }, (secOn + secOff) * 1000); // Total cycle time in seconds
+    // Store the cycle info for cleanup
+    activeCycles[id] = {
+        clear: () => {
+            if (countdownInterval) clearInterval(countdownInterval);
+            if (phaseTimeout) clearTimeout(phaseTimeout);
+            addLog(`Stopped cycle for ${id}`, "info");
+        }
+    };
 }
 
 function updateRelayUI(id, state) {
@@ -448,8 +456,12 @@ function clearLog() {
 function stopAllCycles() {
     addLog("Stopping all active cycles...", "info");
     Object.keys(activeCycles).forEach(id => {
-        clearInterval(activeCycles[id]);
-        addLog(`Stopped cycle for ${id}`, "info");
+        if (activeCycles[id] && activeCycles[id].clear) {
+            activeCycles[id].clear();
+        }
+        // Clear countdown display
+        const countdown = document.getElementById(`${id}-countdown`);
+        if (countdown) countdown.textContent = "";
     });
     activeCycles = {};
 }
