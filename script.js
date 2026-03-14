@@ -204,6 +204,9 @@ function sendConfig(id) {
     
     addLog(`${id} Timer: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
     
+    // Save to persistent storage
+    saveTimerSettings(id, onSeconds, offSeconds);
+    
     // Stop existing timer if running
     if (activeCycles[id]) {
         clearInterval(activeCycles[id]);
@@ -444,6 +447,74 @@ function testSingleTopic(topic, relayId = 'at') {
     }, 2000);
 }
 
+// --- 7. PERSISTENT STORAGE ---
+function saveTimerSettings(id, onSeconds, offSeconds) {
+    const settings = {
+        onSeconds: onSeconds,
+        offSeconds: offSeconds,
+        timestamp: Date.now(),
+        isActive: !!activeCycles[id]
+    };
+    
+    localStorage.setItem(`timer-${id}`, JSON.stringify(settings));
+    addLog(`Saved timer settings for ${id}: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
+    
+    // Also save to MQTT server for persistence
+    const mqttTopic = `home/timer/${id}`;
+    const mqttMessage = JSON.stringify(settings);
+    
+    if (client.isConnected()) {
+        const message = new Paho.MQTT.Message(mqttMessage);
+        message.destinationName = mqttTopic;
+        message.retained = true;
+        client.send(message);
+        addLog(`Synced timer settings to MQTT server: ${mqttTopic}`, "info");
+    }
+}
+
+function loadTimerSettings(id) {
+    const saved = localStorage.getItem(`timer-${id}`);
+    if (saved) {
+        try {
+            const settings = JSON.parse(saved);
+            addLog(`Loaded timer settings for ${id}: ${settings.onSeconds}s ON / ${settings.offSeconds}s OFF`, "info");
+            
+            // Update UI inputs
+            const onInput = document.getElementById(`${id}-min-on`);
+            const offInput = document.getElementById(`${id}-min-off`);
+            if (onInput) onInput.value = settings.onSeconds;
+            if (offInput) offInput.value = settings.offSeconds;
+            
+            // Auto-start timer if it was active
+            if (settings.isActive && settings.onSeconds > 0 && settings.offSeconds > 0) {
+                addLog(`Auto-starting timer for ${id} (was active)`, "info");
+                
+                // Update button state
+                const setBtn = document.querySelector(`#${id}-card .btn-set`);
+                if (setBtn) {
+                    setBtn.textContent = "STOP";
+                    setBtn.style.background = "#ef4444";
+                }
+                
+                // Start timer
+                startTimerLoop(id, settings.onSeconds, settings.offSeconds);
+            }
+            
+            return settings;
+        } catch (error) {
+            addLog(`Error loading timer settings for ${id}: ${error}`, "error");
+        }
+    }
+    return null;
+}
+
+function applySavedTimerSettings() {
+    const relays = ['at', 'h1', 'h2', 'h3'];
+    relays.forEach(id => {
+        loadTimerSettings(id);
+    });
+}
+
 // --- DEBUG FUNCTIONS ---
 function testMQTT() {
     addLog("=== MQTT TEST START ===", "info");
@@ -558,6 +629,7 @@ window.addEventListener('beforeunload', stopAllCycles);
 // Init
 window.addEventListener('DOMContentLoaded', () => {
     applyCustomNames();
+    applySavedTimerSettings(); // Load saved timer settings
     connectMQTT();
     simulateTemperature(); // Run once immediately
     
