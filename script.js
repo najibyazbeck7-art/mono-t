@@ -360,9 +360,17 @@ function sendPersistentLoopInstruction(id, onSeconds, offSeconds) {
     if (client.isConnected()) {
         client.send(message);
         addLog(`✅ Timer loop command sent to ESP32`, "info");
-        addLog(`🔥 ESP32 running: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
+        addLog(`🔥 ESP32 should run: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
         addLog(`📱 Web app shows visual feedback only`, "info");
         addLog(`🔌 ESP32 controls hardware independently`, "info");
+        addLog(`⏳ Waiting for ESP32 to respond...`, "info");
+        
+        // Also send a test ON command to verify MQTT is working
+        setTimeout(() => {
+            addLog(`🧪 Sending test ON command to verify ESP32 connection...`, "info");
+            publishCommand(relayNumber, "ON");
+        }, 2000);
+        
     } else {
         addLog("❌ ERROR: MQTT not connected - cannot send timer command", "error");
     }
@@ -706,6 +714,33 @@ function checkAndRecoverTimers() {
 }
 
 // --- DEBUG FUNCTIONS ---
+function testESP32Timer() {
+    addLog("=== ESP32 TIMER TEST ===", "info");
+    addLog("Testing if ESP32 can receive timer commands...", "info");
+    
+    // Send a simple timer command to AT relay
+    const topic = "home/relay/1";
+    const command = "LOOP_1_3_2"; // 3s ON, 2s OFF
+    
+    const message = new Paho.MQTT.Message(command);
+    message.destinationName = topic;
+    message.retained = true;
+    
+    addLog(`Sending test command: ${command}`, "info");
+    addLog(`To topic: ${topic}`, "info");
+    
+    if (client.isConnected()) {
+        client.send(message);
+        addLog("✅ Test command sent", "info");
+        addLog("🔍 Check if ESP32 relay starts cycling", "info");
+        addLog("📊 Expected: OFF 2s → ON 3s → OFF 2s → ON 3s...", "info");
+    } else {
+        addLog("❌ MQTT not connected", "error");
+    }
+    
+    addLog("========================", "info");
+}
+
 function testMQTT() {
     addLog("=== MQTT TEST START ===", "info");
     addLog("Testing direct MQTT command...", "info");
@@ -843,6 +878,7 @@ window.addEventListener('DOMContentLoaded', () => {
     console.log("Type 'testRelays()' to test relay controls");
     console.log("Type 'mqttStatus()' to check MQTT connection");
     console.log("Type 'testMQTT()' to test direct MQTT commands");
+    console.log("Type 'testESP32Timer()' to test ESP32 timer functionality");
     console.log("Type 'testWithoutMQTT()' to test timer logic only");
     console.log("Type 'stopAllCycles()' to stop all cycles");
     console.log("===========================");
