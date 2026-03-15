@@ -131,6 +131,9 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
     String top = String(topic);
     
+    // Debug: Log all received messages
+    Serial.printf("MQTT Message - Topic: %s, Payload: %s, Length: %d\n", topic, message, length);
+    
     // Handle regular relay commands (backward compatibility)
     if (top.startsWith("home/relay/") && !top.equals("home/relay/system/availability")) {
         // "11" is the length of "home/relay/". We take the number after it.
@@ -140,6 +143,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         if (index >= 0 && index < numRelays) {
             // Check for timer loop commands first
             if (strncmp(message, "LOOP_", 5) == 0) {
+                Serial.printf("TIMER COMMAND DETECTED: %s for Relay %d\n", message, relayNum);
+                
                 // Parse: LOOP_1_5_3 (relay, onTime, offTime)
                 unsigned long onTime = 0, offTime = 0;
                 char* token = strtok(message, "_");
@@ -150,7 +155,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
                     if (token) offTime = strtoul(token, NULL, 10);
                 }
                 
+                Serial.printf("PARSED TIMER: on=%lu, off=%lu\n", onTime, offTime);
+                
                 if (onTime > 0 && offTime > 0) {
+                    Serial.printf("STARTING TIMER LOOP FOR RELAY %d\n", relayNum);
                     startTimerLoop(relayNum, onTime, offTime);
                     
                     // Send confirmation
@@ -158,8 +166,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
                     sprintf(confirmTopic, "home/relay/%d/loop", relayNum);
                     sprintf(message, "STARTED_%lu_%lu", onTime, offTime);
                     mqttClient.publish(confirmTopic, message, true);
+                    
+                    Serial.printf("TIMER LOOP CONFIRMATION SENT\n");
                 } else {
-                    Serial.printf("Invalid timer parameters for Relay %d\n", relayNum);
+                    Serial.printf("INVALID TIMER PARAMETERS for Relay %d: on=%lu, off=%lu\n", relayNum, onTime, offTime);
                 }
             }
             // Handle regular ON/OFF commands
@@ -182,18 +192,21 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
  * Checks for retained timer messages on startup and restarts them
  */
 void checkRetainedTimerMessages() {
-  Serial.println("Checking for retained timer messages...");
+  Serial.println("=== CHECKING RETAINED TIMER MESSAGES ===");
   
-  // Check each relay for retained timer messages
+  // The retained messages should have been delivered automatically when we subscribed
+  // This function is mainly for debugging
+  
   for(int i=1; i<=4; i++) {
-    char topic[30];
-    sprintf(topic, "home/relay/%d", i);
-    
-    // Publish a request to get retained message
-    // Note: This is a workaround - PubSubClient doesn't have direct retained message access
-    // The retained message will be delivered automatically when we subscribe
-    Serial.printf("Checking relay %d for retained timer message...\n", i);
+    Serial.printf("Relay %d timer enabled: %s\n", i, timerLoops[i-1].enabled ? "YES" : "NO");
+    if (timerLoops[i-1].enabled) {
+      Serial.printf("  - ON time: %lu ms\n", timerLoops[i-1].onTime);
+      Serial.printf("  - OFF time: %lu ms\n", timerLoops[i-1].offTime);
+      Serial.printf("  - Current phase: %s\n", timerLoops[i-1].isOnPhase ? "ON" : "OFF");
+    }
   }
+  
+  Serial.println("==========================================");
 }
 
 /* * 11. FUNCTION: reconnectMQTT
