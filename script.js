@@ -340,28 +340,31 @@ function sendPersistentLoopInstruction(id, onSeconds, offSeconds) {
         default: relayNumber = parseInt(id); break;
     }
     
-    // Create simple loop command that ESP32 might understand
+    // Create timer loop command for ESP32
     const loopCommand = `LOOP_${relayNumber}_${onSeconds}_${offSeconds}`;
     
-    // Send to the existing relay topic that ESP32 already monitors
+    // Send to the relay topic that ESP32 monitors
     const topic = `home/relay/${relayNumber}`;
     const message = new Paho.MQTT.Message(loopCommand);
     message.destinationName = topic;
-    message.retained = true; // Keep message for ESP32
+    message.retained = true; // Keep message for ESP32 to read on startup
     
-    addLog(`=== SENDING LOOP COMMAND TO ESP32 ===`, "info");
+    addLog(`=== ESP32 TIMER LOOP COMMAND ===`, "info");
     addLog(`Topic: ${topic}`, "info");
     addLog(`Command: ${loopCommand}`, "info");
-    addLog(`Using existing relay topic ESP32 already monitors`, "info");
-    addLog(`Message is RETAINED - ESP32 will read anytime`, "info");
-    addLog(`=====================================`, "info");
+    addLog(`Format: LOOP_<relay>_<onSeconds>_<offSeconds>`, "info");
+    addLog(`ESP32 will run this loop using millis() timing`, "info");
+    addLog(`Retained message - survives reboots and disconnections`, "info");
+    addLog(`================================`, "info");
     
     if (client.isConnected()) {
         client.send(message);
-        addLog(`✅ Loop command sent to ESP32`, "info");
-        addLog(`🔥 ESP32 should start: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
+        addLog(`✅ Timer loop command sent to ESP32`, "info");
+        addLog(`🔥 ESP32 running: ${onSeconds}s ON / ${offSeconds}s OFF`, "info");
+        addLog(`📱 Web app shows visual feedback only`, "info");
+        addLog(`🔌 ESP32 controls hardware independently`, "info");
     } else {
-        addLog("❌ ERROR: MQTT not connected - cannot send loop command", "error");
+        addLog("❌ ERROR: MQTT not connected - cannot send timer command", "error");
     }
 }
 
