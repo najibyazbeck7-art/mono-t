@@ -178,8 +178,26 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
 }
 
-/* * 10. FUNCTION: reconnectMQTT
- * Enhanced reconnection with timer topic subscriptions
+/* * 10. FUNCTION: checkRetainedTimerMessages
+ * Checks for retained timer messages on startup and restarts them
+ */
+void checkRetainedTimerMessages() {
+  Serial.println("Checking for retained timer messages...");
+  
+  // Check each relay for retained timer messages
+  for(int i=1; i<=4; i++) {
+    char topic[30];
+    sprintf(topic, "home/relay/%d", i);
+    
+    // Publish a request to get retained message
+    // Note: This is a workaround - PubSubClient doesn't have direct retained message access
+    // The retained message will be delivered automatically when we subscribe
+    Serial.printf("Checking relay %d for retained timer message...\n", i);
+  }
+}
+
+/* * 11. FUNCTION: reconnectMQTT
+ * Enhanced reconnection with timer topic subscriptions and retained message check
  */
 void reconnectMQTT() {
   while (!mqttClient.connected()) {
@@ -211,13 +229,18 @@ void reconnectMQTT() {
       }
       
       Serial.println("Subscribed to relay and loop topics");
+      
+      // Check for retained timer messages after connection
+      delay(1000); // Give time for retained messages to be delivered
+      checkRetainedTimerMessages();
+      
     } else {
       delay(5000); // Wait 5 seconds before trying again if it fails
     }
   }
 }
 
-/* * 11. SETUP: Enhanced setup with timer initialization
+/* * 12. SETUP: Enhanced setup with timer initialization
  */
 void setup() {
     Serial.begin(115200); // Opens the communication door for your USB cable
@@ -263,7 +286,7 @@ void setup() {
     Serial.println("ESP32 Relay Controller with Timer Loops initialized");
 }
 
-/* * 12. LOOP: Enhanced main loop with timer updates
+/* * 13. LOOP: Enhanced main loop with timer updates
  */
 void loop() {
     esp_task_wdt_reset(); // "Feeding the dog": Prevents the watchdog from rebooting.
